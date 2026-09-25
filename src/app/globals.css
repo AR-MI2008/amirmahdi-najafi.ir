@@ -1,0 +1,302 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Precision Technology — design tokens
+   Dark and light are designed independently; light is not an inversion.
+   ========================================================================== */
+
+:root,
+[data-theme='dark'] {
+  --bg: #05070a;
+  --surface: #0d131a;
+  --surface-elevated: #090d12;
+  --fg: #f4f7fa;
+  --muted: #8c98a6;
+  --accent: #42d9ff;
+  --accent-secondary: #00b8e6;
+  --accent-contrast: #04121a; /* text placed on top of --accent */
+  --border: rgb(140 152 166 / 0.16);
+  --border-strong: rgb(140 152 166 / 0.3);
+  --danger: #ff6b6b;
+  --success: #06d6a0;
+  --glow: 0 0 0 1px rgb(66 217 255 / 0.22), 0 12px 44px -18px rgb(66 217 255 / 0.5);
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.03), 0 24px 60px -40px rgb(0 0 0 / 0.9);
+  --grid-line: rgb(140 152 166 / 0.09);
+  --grain-opacity: 0.035;
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  --bg: #f7f9fb;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --fg: #081018;
+  --muted: #5e6875;
+  /* Darkened cyan so text/icons on the light background clear WCAG AA. */
+  --accent: #0071a0;
+  --accent-secondary: #00546f;
+  --accent-contrast: #ffffff;
+  --border: rgb(8 16 24 / 0.12);
+  --border-strong: rgb(8 16 24 / 0.24);
+  --danger: #c02636;
+  --success: #007a5a;
+  --glow: 0 0 0 1px rgb(0 113 160 / 0.18), 0 12px 40px -22px rgb(0 113 160 / 0.35);
+  --shadow: 0 1px 2px rgb(8 16 24 / 0.04), 0 18px 44px -34px rgb(8 16 24 / 0.35);
+  --grid-line: rgb(8 16 24 / 0.06);
+  --grain-opacity: 0.02;
+  color-scheme: light;
+}
+
+:root {
+  /* Radii — deliberately small. Hardware-instrument feel, not SaaS pill. */
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-lg: 8px;
+
+  /* Spacing scale (rem) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+
+  /* Type scale — 1.25 minor third, fluid on the display sizes */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: clamp(1.25rem, 0.6vw + 1.1rem, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.2vw + 1.2rem, 2rem);
+  --text-3xl: clamp(2rem, 2.4vw + 1.4rem, 3rem);
+  --text-display: clamp(2.75rem, 7vw + 0.5rem, 6.5rem);
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-normal: 260ms;
+  --dur-slow: 620ms;
+  --dur-page: 340ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --spring: linear(0, 0.36 8%, 0.78 18%, 1.02 27%, 1.06 34%, 1 50%, 1);
+
+  /* Supplied by next/font/local in app/layout.tsx. */
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* Persian: Vazirmatn, looser leading and no letter-spacing. */
+html[lang='fa'] {
+  --font-sans: var(--font-vazirmatn), Tahoma, ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------- base --- */
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+html[lang='fa'] body {
+  line-height: 1.85;
+  letter-spacing: 0;
+  font-feature-settings: normal;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* Persian numerals in FA locale where the content is prose, not code. */
+html[lang='fa'] .num-fa {
+  font-variant-numeric: normal;
+  -moz-font-feature-settings: 'ss02';
+}
+
+/* ------------------------------------------------------------ utilities --- */
+
+.shell {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 3rem);
+}
+
+/* Hairline technical grid used as page substrate, never as decoration alone. */
+.grid-substrate {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 88px 88px;
+  background-position: center top;
+  mask-image: radial-gradient(120% 80% at 50% 0%, #000 30%, transparent 100%);
+}
+
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.rule {
+  border-block-start: 1px solid var(--border);
+}
+
+.tick {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.prose-body {
+  max-width: 68ch;
+  font-size: var(--text-lg);
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+.prose-body strong {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- motion --- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.reveal {
+  opacity: 0;
+  animation: rise var(--dur-slow) var(--ease-out) forwards;
+}
+
+/* One orchestrated page-load sequence on the hero only. */
+.reveal[data-step='1'] { animation-delay: 60ms; }
+.reveal[data-step='2'] { animation-delay: 160ms; }
+.reveal[data-step='3'] { animation-delay: 260ms; }
+.reveal[data-step='4'] { animation-delay: 380ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Project theming
+   --------------------------------------------------------------------------
+   projectVars() in components/project/case-study.tsx sets twelve raw values
+   as inline custom properties (--p-dark-* and --p-light-*). Inline styles
+   cannot vary by theme, so the mapping to the variables the UI actually reads
+   happens here, keyed on [data-theme].
+
+   This is what makes a project legible in BOTH global themes: the light
+   palette is a designed palette, not an inversion, and the hero's foreground
+   travels with its background instead of inheriting a foreground chosen for a
+   different background.
+   ========================================================================== */
+
+.project-scope {
+  --accent: var(--p-dark-accent);
+  --accent-secondary: var(--p-dark-accent-2);
+  --project-bg: var(--p-dark-bg);
+  --project-surface: var(--p-dark-surface);
+  --project-fg: var(--p-dark-fg);
+  --project-muted: var(--p-dark-muted);
+  --project-glow: var(--p-dark-glow);
+}
+
+[data-theme='light'] .project-scope {
+  --accent: var(--p-light-accent);
+  --accent-secondary: var(--p-light-accent-2);
+  --project-bg: var(--p-light-bg);
+  --project-surface: var(--p-light-surface);
+  --project-fg: var(--p-light-fg);
+  --project-muted: var(--p-light-muted);
+  --project-glow: var(--p-light-glow);
+}
+
+/* Regions painted with the project background must also take its foreground,
+   or a light-mode project hero renders dark text on a dark panel. */
+.project-surface {
+  background: var(--project-bg);
+  color: var(--project-fg);
+}
+
+.project-muted {
+  color: var(--project-muted);
+}
+
+/* Secondary text inside a project-painted region follows the project's own
+   muted colour. Without this, .tick and .prose-body keep the global muted
+   value, which was chosen against the global background, not this one. */
+.project-surface .tick,
+.project-surface .prose-body {
+  color: var(--project-muted);
+}
+
+.project-surface .prose-body strong {
+  color: var(--project-fg);
+}

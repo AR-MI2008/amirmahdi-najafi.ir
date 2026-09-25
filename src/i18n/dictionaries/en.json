@@ -1,0 +1,140 @@
+{
+  "nav": {
+    "work": "Work",
+    "about": "About",
+    "blog": "Writing",
+    "services": "Services",
+    "contact": "Contact",
+    "menu": "Open menu",
+    "close": "Close menu",
+    "skip": "Skip to content",
+    "theme": "Switch theme",
+    "language": "Switch language",
+    "commands": "Open commands"
+  },
+  "hero": {
+    "name": "Amirmahdi Najafi",
+    "role": "Software Developer, AI Builder & Founder",
+    "lines": [
+      "Software developer,",
+      "AI builder",
+      "& founder."
+    ],
+    "lede": "I design and build software, intelligent systems and digital products — from the first sketch to something people actually run.",
+    "primary": "Explore my work",
+    "secondary": "Start a project",
+    "scroll": "Scroll"
+  },
+  "sections": {
+    "work": "Selected work",
+    "workLede": "Five projects I own end to end. Each one has a case study, not a screenshot gallery.",
+    "build": "What I build",
+    "buildLede": "The kinds of problems I take on.",
+    "flagship": "Flagship",
+    "stack": "Engineering",
+    "stackLede": "Tools I use in production, not a badge wall.",
+    "metrics": "By the numbers",
+    "github": "Open source",
+    "githubLede": "A few public repositories.",
+    "writing": "Engineering notes",
+    "writingLede": "Notes on what I build and what broke along the way.",
+    "cta": "Have something worth building?",
+    "ctaLede": "Tell me what you are trying to make. I will tell you honestly whether I am the right person to build it.",
+    "viewAll": "View all",
+    "caseStudy": "Read the case study",
+    "readMore": "Read",
+    "nextProject": "Next project",
+    "relatedLinks": "Related links",
+    "repository": "Repository",
+    "liveSite": "Live site"
+  },
+  "project": {
+    "role": "Role",
+    "status": "Status",
+    "category": "Category",
+    "stack": "Stack",
+    "overview": "Overview",
+    "problem": "Problem",
+    "solution": "What I built",
+    "contribution": "My contribution",
+    "design": "Design system",
+    "engineering": "Engineering",
+    "challenges": "Challenges",
+    "results": "Outcome",
+    "lessons": "What I learned",
+    "capabilities": "Capabilities",
+    "implemented": "Implemented",
+    "inProgress": "In development",
+    "planned": "Planned",
+    "date": "Date"
+  },
+  "contact": {
+    "title": "Start a conversation",
+    "lede": "The form is the fastest way to reach me. Email and Telegram work too.",
+    "name": "Name",
+    "email": "Email",
+    "subject": "Project or subject",
+    "type": "Project type",
+    "message": "Message",
+    "typeOptions": [
+      "Web application",
+      "AI integration",
+      "Backend / API",
+      "Automation",
+      "Other"
+    ],
+    "send": "Send message",
+    "sending": "Sending",
+    "success": "Message sent. I read everything and reply to real enquiries.",
+    "error": "The message did not send. Check the fields and try again, or email me directly.",
+    "required": "Required",
+    "invalidEmail": "Enter a valid email address",
+    "tooLong": "This field is too long",
+    "copy": "Copy email",
+    "copied": "Copied",
+    "turnstileLabel": "Human verification",
+    "turnstileFailed": "Verification could not load. Refresh the page, or reach me on Telegram or by email instead.",
+    "turnstilePending": "Complete the verification above to send."
+  },
+  "palette": {
+    "placeholder": "Search pages, projects and notes",
+    "empty": "Nothing matches that.",
+    "pages": "Pages",
+    "projects": "Projects",
+    "posts": "Writing",
+    "actions": "Actions",
+    "toggleTheme": "Toggle theme",
+    "switchLanguage": "Switch to Persian",
+    "openGithub": "Open GitHub",
+    "openTelegram": "Open Telegram",
+    "hint": "to open"
+  },
+  "blog": {
+    "search": "Search notes",
+    "all": "All",
+    "featured": "Featured",
+    "recent": "Recent",
+    "readingTime": "min read",
+    "published": "Published",
+    "updated": "Updated",
+    "toc": "On this page",
+    "related": "Related notes",
+    "previous": "Previous",
+    "next": "Next",
+    "empty": "No notes published yet. The first ones are being written."
+  },
+  "footer": {
+    "descriptor": "Software developer, AI builder and founder. Building products from Iran.",
+    "rights": "All rights reserved.",
+    "built": "Designed and built by Amirmahdi Najafi."
+  },
+  "notFound": {
+    "title": "This route does not resolve",
+    "lede": "The page you asked for is not on this server. These are.",
+    "home": "Back home",
+    "projects": "Browse projects"
+  },
+  "breadcrumb": {
+    "home": "Home"
+  }
+}

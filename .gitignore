@@ -1,0 +1,27 @@
+node_modules
+.next
+out
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+playwright-report
+test-results
+coverage
+
+# Production secrets
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build/runtime
+.next/
+node_modules/
+*.log
+geist-*.tgz
+
+# Downloaded font archives / source packages
+public/fonts/*.zip
+public/fonts/vazirmatn/
+geist-*.tgz
