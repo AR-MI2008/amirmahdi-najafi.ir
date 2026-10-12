@@ -1,0 +1,25 @@
+# Adapt paths/user before installing. No service is changed by this repository.
+[Unit]
+Description=Amirmahdi site with private CMS
+After=network.target
+
+[Service]
+Type=simple
+User=amirmahdi
+Group=amirmahdi
+WorkingDirectory=/srv/amirmahdi/current
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/amirmahdi/site.env
+# Node >=22.13 must be installed at this path.
+ExecStartPre=/usr/bin/node /srv/amirmahdi/current/scripts/cms-preflight.mjs
+ExecStart=/usr/bin/node /srv/amirmahdi/current/node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+StateDirectory=amirmahdi-cms
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target

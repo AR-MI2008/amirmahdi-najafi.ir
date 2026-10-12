@@ -1,6 +1,6 @@
 # Deployment
 
-Target: any Node.js 20+ host that can run `next start` — a VPS with Nginx in
+Target: any Node.js 22.13+ host that can run `next start` — a VPS with Nginx in
 front, or a managed Node platform. Nothing in the build is provider-specific.
 
 ## 1. Build
@@ -20,10 +20,13 @@ page's metrics.
 
 ## 2. Environment
 
-Copy `.env.example` to `.env` and fill it. Only `NEXT_PUBLIC_SITE_URL` is
-strictly required; without the email variables the contact form accepts
-submissions and logs that delivery is unconfigured rather than showing the
-visitor an error.
+Copy `.env.example` to a protected environment file and fill it. Production
+requires a site URL and a random `RATE_LIMIT_PEPPER`. Without a mail provider,
+the contact endpoint returns 503 instead of claiming delivery.
+
+For CMS initialization, trusted proxy setup, preflight and verified SQLite
+backup/restore, follow [CMS stage 7](CMS-STAGE-7.md). The standard build uses
+webpack; `npm run build:turbopack` is an optional diagnostic path.
 
 Never prefix a secret with `NEXT_PUBLIC_`. Anything with that prefix is
 compiled into the browser bundle.

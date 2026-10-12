@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -17,7 +17,14 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "audit:deps": "npm audit --omit=dev",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run test:ops && npm run build",
+    "build:turbopack": "next build --turbopack",
+    "test:cms": "npm run build && playwright test --config=playwright.cms.config.ts",
+    "test:ops": "node --test tests/operations/*.test.mjs",
+    "cms:preflight": "node --env-file=.env.production scripts/cms-preflight.mjs",
+    "cms:backup": "node --env-file=.env.production scripts/cms-backup.mjs",
+    "cms:restore": "node scripts/cms-restore.mjs",
+    "cms:init": "node --env-file=.env.production scripts/cms-init.mjs"
   },
   "dependencies": {
     "next": "16.3.4",

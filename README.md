@@ -1,14 +1,13 @@
 # amirmahdi-najafi.ir
 
-> ## Status: not yet verified
+> ## CMS development branch
 >
-> An audit and hardening pass was completed in September 2026
-> (`docs/UPGRADE-2026-09.md`). The build, type check, lint, e2e suite and
-> dependency audit **have not been run** — they need network access this work
-> did not have, and `package-lock.json` does not exist yet.
->
-> Read **`docs/VERIFICATION.md`** before deploying. It lists exactly what was
-> executed, what was not, and what to run first.
+> The private SQLite CMS has graphical Persian post/project forms on
+> `feature/admin-cms`. It is not deployed and public rendering still uses typed
+> content. Stage 7 adds production browser checks, runtime preflight and
+> verified backup/restore tools; see [CMS stage 7](docs/CMS-STAGE-7.md) for actual
+> validation results and release requirements. A lockfile is present and the
+> standard production build uses webpack.
 >
 > Content is also gated: capability lists, project dates and metrics are
 > withheld until `docs/CONTENT-FACT-CHECK.md` is worked through.
@@ -44,7 +43,7 @@ Other scripts:
 
 | Command | What it does |
 | --- | --- |
-| `npm run build` | Production build |
+| `npm run build` | Production build using webpack |
 | `npm run start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit`, strict |
 | `npm run lint` | ESLint flat config (`eslint .` — `next lint` was removed in Next 16) |

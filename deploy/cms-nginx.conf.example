@@ -1,0 +1,43 @@
+# Review with nginx -t before installing. This file is not deployed by the repo.
+# App must bind to 127.0.0.1:3000; firewall must not expose that port.
+server {
+    listen 443 ssl;
+    server_name amirmahdi-najafi.ir;
+    ssl_certificate /etc/letsencrypt/live/amirmahdi-najafi.ir/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/amirmahdi-najafi.ir/privkey.pem;
+
+    client_max_body_size 1m;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # Overwrite, never append or pass incoming identity/host headers.
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Connection "";
+    }
+    location /admin {
+        client_max_body_size 1m;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Connection "";
+        proxy_cache off;
+        add_header Cache-Control "private, no-store" always;
+        add_header X-Robots-Tag "noindex, nofollow" always;
+    }
+}
+server {
+    listen 80;
+    server_name amirmahdi-najafi.ir;
+    return 301 https://amirmahdi-najafi.ir$request_uri;
+}
+# Keep your existing default-host rejection and www redirects.
+# With a CDN, $remote_addr is the CDN edge: configure real_ip ONLY for documented
+# trusted CIDRs first, otherwise all users may share one login rate-limit bucket.

@@ -1,5 +1,7 @@
 # Content management
 
+On `feature/admin-cms`, `/admin/content` now edits a dedicated SQLite database through Persian forms. This CMS is not deployed and is not yet connected to public rendering. See [stage 6](CMS-STAGE-6.md) for the editor and [stage 7](CMS-STAGE-7.md) for verification, trusted proxy setup and backup/restore. The typed-content documentation below still describes the public rendering source.
+
 > **Payload CMS is NOT installed and NOT running.**
 >
 > No Payload package appears in `package.json`. The `payload/` directory is a
