@@ -54,7 +54,7 @@ export function saveAdminEntry(kind: Kind, raw: unknown): StoredEntry {
       db.prepare('INSERT INTO cms_revisions (entry_id, snapshot_json) VALUES (?, ?)').run(id, existing.data_json);
       db.prepare(
         "UPDATE cms_entries SET status=?, title_fa=?, title_en=?, data_json=?, updated_at=datetime('now'), published_at=CASE WHEN ?='published' THEN COALESCE(published_at,datetime('now')) ELSE NULL END WHERE id=?"
-      ).run(status, data.title ? (kind === 'post' ? (data as AdminPostInput).title.fa : (data as AdminProjectInput).name.fa) : '', kind === 'post' ? (data as AdminPostInput).title.en : (data as AdminProjectInput).name.en, serialized, status, id);
+      ).run(status, kind === 'post' ? (data as AdminPostInput).title.fa : (data as AdminProjectInput).name.fa, kind === 'post' ? (data as AdminPostInput).title.en : (data as AdminProjectInput).name.en, serialized, status, id);
     } else {
       const title = kind === 'post' ? (data as AdminPostInput).title : (data as AdminProjectInput).name;
       const result = db.prepare(
