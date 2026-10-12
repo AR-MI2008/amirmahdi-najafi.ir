@@ -105,7 +105,9 @@ describe('payload limits', () => {
 
   it('rejects an oversized actual body even when Content-Length lies', async () => {
     const { POST } = await route();
-    const res = await POST(post(payload({ message: 'x'.repeat(50_000) }), { 'content-length': '10' }));
+    const res = await POST(
+      post(payload({ message: 'x'.repeat(50_000) }), { 'content-length': '10' }),
+    );
     expect(res.status).toBe(413);
   });
 
@@ -176,7 +178,7 @@ describe('mail provider availability', () => {
 });
 
 describe('bot handling', () => {
-  it('accepts a filled honeypot without sending anything', async () => {
+  it('rejects a filled honeypot without sending anything', async () => {
     process.env.NODE_ENV = 'production';
     process.env.EMAIL_API_KEY = 'key';
     process.env.EMAIL_FROM = 'noreply@example.com';
@@ -185,7 +187,7 @@ describe('bot handling', () => {
 
     const { POST } = await route();
     const res = await POST(post(payload({ website: 'http://spam.example' })));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -275,10 +277,7 @@ describe('turnstile paths', () => {
 
   it('does not leak Cloudflare error codes to the browser', async () => {
     enableTurnstile();
-    vi.stubGlobal(
-      'fetch',
-      siteverify({ success: false, 'error-codes': ['invalid-input-secret'] }),
-    );
+    vi.stubGlobal('fetch', siteverify({ success: false, 'error-codes': ['invalid-input-secret'] }));
 
     const { POST } = await route();
     const res = await POST(post(payload({ turnstileToken: 'tok' })));

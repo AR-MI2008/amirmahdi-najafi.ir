@@ -18,7 +18,9 @@ async function parseWith(env: Record<string, string | undefined>) {
   vi.resetModules();
   const previous = { ...process.env };
   Object.keys(process.env).forEach((k) => delete process.env[k]);
-  Object.assign(process.env, env);
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined) process.env[key] = value;
+  }
   try {
     const { serverEnv } = await import('@/lib/env');
     return serverEnv();
@@ -35,18 +37,18 @@ describe('serverEnv', () => {
     await expect(parseWith(BASE)).resolves.toBeTruthy();
   });
 
-  it('rejects a missing mail provider in production', async () => {
-    await expect(parseWith({ ...BASE, EMAIL_API_KEY: undefined })).rejects.toThrow(/EMAIL_API_KEY/);
+  it('allows boot without mail; contact rejects delivery separately', async () => {
+    await expect(parseWith({ ...BASE, EMAIL_API_KEY: undefined })).resolves.toBeTruthy();
   });
 
   it('rejects a half-configured Turnstile pair', async () => {
-    await expect(
-      parseWith({ ...BASE, TURNSTILE_SECRET_KEY: 'secret' }),
-    ).rejects.toThrow(/Turnstile is half-configured/);
+    await expect(parseWith({ ...BASE, TURNSTILE_SECRET_KEY: 'secret' })).rejects.toThrow(
+      /Turnstile is half-configured/,
+    );
 
-    await expect(
-      parseWith({ ...BASE, NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site' }),
-    ).rejects.toThrow(/Turnstile is half-configured/);
+    await expect(parseWith({ ...BASE, NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site' })).rejects.toThrow(
+      /Turnstile is half-configured/,
+    );
   });
 
   it('accepts a fully configured Turnstile, allowlist included', async () => {
@@ -162,7 +164,12 @@ describe('serverEnv', () => {
     const { publicEnv } = await import('@/lib/env');
     const serialised = JSON.stringify(publicEnv);
     expect(Object.keys(publicEnv)).toEqual(['turnstileSiteKey']);
-    for (const secret of ['EMAIL_API_KEY', 'TURNSTILE_SECRET_KEY', 'RATE_LIMIT_PEPPER', 'GITHUB_TOKEN']) {
+    for (const secret of [
+      'EMAIL_API_KEY',
+      'TURNSTILE_SECRET_KEY',
+      'RATE_LIMIT_PEPPER',
+      'GITHUB_TOKEN',
+    ]) {
       expect(serialised).not.toContain(secret);
     }
   });
