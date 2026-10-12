@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { projectDateSchema } from './date-validation';
 
 const l10n = z.object({
   fa: z.string().trim().min(1).max(10000),
@@ -26,8 +27,8 @@ export const adminProjectSchema = z.object({
   name: l10n,
   category: l10n,
   role: l10n,
-  startDate: z.string().regex(/^\d{4}-\d{2}(?:-\d{2})?$/).optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}(?:-\d{2})?$/).optional(),
+  startDate: projectDateSchema.optional(),
+  endDate: projectDateSchema.optional(),
   displayDate: l10n.optional(),
   status: z.enum(['live', 'in-development', 'prototype', 'delivered']),
   featured: z.boolean(),
@@ -57,7 +58,7 @@ export const adminProjectSchema = z.object({
     }).strict(),
   }).strict()).max(100),
   gallery: z.array(z.object({
-    src: z.string().startsWith('/').max(500).refine((value) => !value.startsWith('//') && !value.includes('..')),
+    src: z.string().startsWith('/').max(500).refine((value) => !value.startsWith('//') && !value.includes('..') && !/[\\?#%]/.test(value)),
     alt: l10n,
     width: z.number().int().positive().max(20000),
     height: z.number().int().positive().max(20000),

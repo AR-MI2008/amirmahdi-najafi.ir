@@ -13,6 +13,7 @@ it('creates article blocks without JSON editing and serializes bilingual text', 
   expect(
     JSON.parse((container.querySelector('[name=content]') as HTMLInputElement).value).slug,
   ).toBe('test-post');
+  expect(JSON.parse((container.querySelector('[name=content]') as HTMLInputElement).value).draft).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'حذف مورد 1' }));
   expect(
     JSON.parse((container.querySelector('[name=content]') as HTMLInputElement).value).blocks,

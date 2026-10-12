@@ -121,7 +121,9 @@ function Field({
 }) {
   const s = unwrap(schema),
     key = path.split('.').at(-1)!,
-    label = labels[key] ?? key;
+    label = path
+      ? (labels[key] ?? (Number.isInteger(Number(key)) ? `مورد ${Number(key) + 1}` : key))
+      : 'اطلاعات محتوا';
   const id = 'cms-' + path,
     error = errors[path];
   if (schema.isOptional() && s instanceof z.ZodObject && !optionalEnabled) {
@@ -335,7 +337,34 @@ export function ContentEditor({
   originalSlug?: string;
 }) {
   const schema = kind === 'post' ? adminPostSchema : adminProjectSchema;
-  const [value, setValue] = useState(initial ?? empty(schema));
+  const [value, setValue] = useState<unknown>(() => {
+    if (initial) return initial;
+    const draft = empty(schema) as Record<string, unknown>;
+    if (kind === 'post') draft.draft = true;
+    else
+      draft.theme = {
+        motif: 'radar',
+        glow: 0.2,
+        glowLight: 0.12,
+        dark: {
+          background: '#05070a',
+          surface: '#0d131a',
+          accent: '#42d9ff',
+          accentSecondary: '#00b8e6',
+          foreground: '#f4f7fa',
+          muted: '#8c98a6',
+        },
+        light: {
+          background: '#f7f9fb',
+          surface: '#ffffff',
+          accent: '#0071a0',
+          accentSecondary: '#00546f',
+          foreground: '#081018',
+          muted: '#5e6875',
+        },
+      };
+    return draft;
+  });
   const [state, action, pending] = useActionState(saveAdminContent, { ok: false, message: '' });
   return (
     <form action={action} className="cms-editor">

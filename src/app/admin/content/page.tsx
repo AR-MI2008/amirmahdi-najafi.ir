@@ -36,7 +36,7 @@ export default async function AdminContentPage({
             {entry ? 'ویرایش' : 'ایجاد'} {kind === 'post' ? 'مقاله' : 'پروژه'}
           </h2>
           <ContentEditor
-            key={`${kind}:${slug ?? 'new'}:${entry ? entryVersion(entry.data) : ''}`}
+            key={`${kind}:${slug ?? 'new'}`}
             kind={kind}
             initial={entry?.data}
             version={entry ? entryVersion(entry.data) : ''}

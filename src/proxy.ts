@@ -85,7 +85,12 @@ export default function proxy(request: NextRequest) {
   // The root layout reads these to set <html lang> and <html dir> without a
   // client round-trip, and to nonce the theme bootstrap script.
   const segment = pathname.split('/')[1] ?? '';
-  const locale = (locales as readonly string[]).includes(segment) ? segment : defaultLocale;
+  const locale =
+    segment === 'admin'
+      ? 'fa'
+      : (locales as readonly string[]).includes(segment)
+        ? segment
+        : defaultLocale;
 
   const headers = new Headers(request.headers);
   headers.set('x-nonce', nonce);
@@ -94,6 +99,10 @@ export default function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers } });
   response.headers.set('Content-Security-Policy', csp);
+  if (segment === 'admin') {
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
   return response;
 }
 
