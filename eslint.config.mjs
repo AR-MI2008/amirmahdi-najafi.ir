@@ -17,7 +17,13 @@ export default defineConfig([
         {
           patterns: [
             {
-              group: ['@/content/*', '**/content/projects', '**/content/posts', '**/content/services', '**/content/site'],
+              group: [
+                '@/content/*',
+                '**/content/projects',
+                '**/content/posts',
+                '**/content/services',
+                '**/content/site',
+              ],
               message:
                 'Import content through @/lib/content-source. Only content-source.ts may import src/content directly.',
             },
@@ -30,6 +36,13 @@ export default defineConfig([
   {
     name: 'project/content-source-exemption',
     files: ['src/lib/content-source.ts'],
+    rules: { 'no-restricted-imports': 'off' },
+  },
+
+  {
+    name: 'project/content-fixture-tests',
+    files: ['tests/**/*.ts', 'tests/**/*.tsx'],
+    // Tests intentionally inspect the complete typed fixtures, including drafts.
     rules: { 'no-restricted-imports': 'off' },
   },
 

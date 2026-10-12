@@ -38,9 +38,7 @@ test('titles and descriptions are unique per page and per language', async ({ pa
   for (const path of PAGES) {
     await page.goto(path);
     const title = await page.title();
-    const description = await page
-      .locator('meta[name="description"]')
-      .getAttribute('content');
+    const description = await page.locator('meta[name="description"]').getAttribute('content');
 
     expect(title.length, `${path} has no title`).toBeGreaterThan(0);
     expect(description?.length ?? 0, `${path} has no description`).toBeGreaterThan(0);
@@ -92,6 +90,8 @@ test('content is present without JavaScript', async ({ browser }) => {
   await page.goto('/en/projects/pad-system');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByText(/Problem/i).first()).toBeVisible();
+  await page.getByRole('link', { name: /switch language/i }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 
   await page.goto('/fa');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

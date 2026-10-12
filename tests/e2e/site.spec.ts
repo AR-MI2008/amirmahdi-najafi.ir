@@ -8,7 +8,7 @@ test('homepage renders its heading and selected work without JS interaction', as
 
 test('language switch preserves the current page', async ({ page }) => {
   await page.goto('/en/projects/pad-system');
-  await page.getByRole('button', { name: /switch language/i }).click();
+  await page.getByRole('link', { name: /switch language/i }).click();
   await expect(page).toHaveURL(/\/fa\/projects\/pad-system$/);
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 });
@@ -34,7 +34,10 @@ test('command palette opens, filters and closes on Escape', async ({ page }) => 
 
 test('project navigation reaches a case study', async ({ page }) => {
   await page.goto('/en/projects');
-  await page.getByRole('link', { name: /WebGuard/i }).first().click();
+  await page
+    .getByRole('link', { name: /WebGuard/i })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/en\/projects\/webguard$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('WebGuard');
 });

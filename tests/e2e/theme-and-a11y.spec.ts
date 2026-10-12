@@ -117,8 +117,9 @@ test('mobile navigation opens and closes', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'mobile projects only');
   await page.goto('/en');
   await page.getByRole('button', { name: /menu/i }).click();
-  await expect(page.getByRole('navigation').getByRole('link', { name: /projects/i }).first()).toBeVisible();
+  await expect(page.locator('#mobile-nav a[href="/en/projects"]')).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(page.locator('#mobile-nav')).toBeHidden();
 });
 
 test('pinch zoom is not disabled', async ({ page }) => {

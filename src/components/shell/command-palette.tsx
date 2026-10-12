@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { switchLocalePath, type Locale } from '@/i18n/config';
 
@@ -53,7 +60,7 @@ export function CommandPalette({ locale, items, strings }: Props) {
         return;
       }
       if (item.action === 'language') {
-        router.push(switchLocalePath(pathname, locale === 'en' ? 'fa' : 'en'));
+        window.location.assign(switchLocalePath(pathname, locale === 'en' ? 'fa' : 'en'));
         return;
       }
       if (!item.href) return;
@@ -182,20 +189,12 @@ export function CommandPalette({ locale, items, strings }: Props) {
                       const isActive = index === active;
                       return (
                         <li key={item.id}>
-                          <button
-                            id={`palette-${item.id}`}
-                            role="option"
-                            aria-selected={isActive}
-                            type="button"
-                            onMouseEnter={() => setActive(index)}
-                            onClick={() => run(item)}
-                            className={`flex w-full items-center justify-between rounded px-3 py-2 text-start text-[length:var(--text-sm)] ${
-                              isActive ? 'bg-[color:var(--surface)] text-fg' : 'text-muted'
-                            }`}
-                          >
-                            <span>{item.label}</span>
-                            {isActive ? <span className="tick">↵</span> : null}
-                          </button>
+                          <PaletteOption
+                            item={item}
+                            active={isActive}
+                            onSelect={run}
+                            onHover={() => setActive(index)}
+                          />
                         </li>
                       );
                     })}
@@ -206,5 +205,32 @@ export function CommandPalette({ locale, items, strings }: Props) {
         </ul>
       </div>
     </div>
+  );
+}
+
+function PaletteOption({
+  item,
+  active,
+  onSelect,
+  onHover,
+}: {
+  item: PaletteItem;
+  active: boolean;
+  onSelect: (item: PaletteItem) => void;
+  onHover: () => void;
+}) {
+  return (
+    <button
+      id={`palette-${item.id}`}
+      role="option"
+      aria-selected={active}
+      type="button"
+      onMouseEnter={onHover}
+      onClick={() => onSelect(item)}
+      className={`flex w-full items-center justify-between rounded px-3 py-2 text-start text-[length:var(--text-sm)] ${active ? 'bg-[color:var(--surface)] text-fg' : 'text-muted'}`}
+    >
+      <span>{item.label}</span>
+      {active ? <span className="tick">↵</span> : null}
+    </button>
   );
 }

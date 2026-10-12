@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Turnstile, type TurnstileHandle } from '@/components/turnstile';
 import { shouldResetWidget } from '@/lib/turnstile-flow';
 
@@ -34,7 +34,10 @@ export function ContactForm({
 }) {
   const [state, setState] = useState<State>('idle');
   const [token, setToken] = useState<string | null>(null);
-  const renderedAt = useRef(Date.now());
+  const renderedAt = useRef(0);
+  useEffect(() => {
+    renderedAt.current = Date.now();
+  }, []);
   const turnstileRef = useRef<TurnstileHandle>(null);
 
   const turnstileRequired = turnstileSiteKey.length > 0;
@@ -127,7 +130,14 @@ export function ContactForm({
           <label htmlFor="name" className="mb-2 block text-[length:var(--text-sm)]">
             {strings.name}
           </label>
-          <input id="name" name="name" required maxLength={80} autoComplete="name" className={field} />
+          <input
+            id="name"
+            name="name"
+            required
+            maxLength={80}
+            autoComplete="name"
+            className={field}
+          />
         </div>
         <div>
           <label htmlFor="email" className="mb-2 block text-[length:var(--text-sm)]">
