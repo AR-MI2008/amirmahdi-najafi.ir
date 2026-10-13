@@ -4,6 +4,7 @@ import { isAbsolute, resolve, sep } from 'node:path';
 
 export function checkCmsEnvironment(env = process.env) {
   const failures = [];
+  if (!['typed','sqlite'].includes(env.CONTENT_SOURCE ?? 'typed')) failures.push('Invalid CONTENT_SOURCE');
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (major < 22 || (major === 22 && minor < 13)) failures.push('Node >=22.13 required');
   try {
@@ -29,6 +30,7 @@ export function checkCmsEnvironment(env = process.env) {
       const db = new DatabaseSync(dbPath, { readOnly: true });
       try {
         for (const table of [
+          'cms_settings',
           'cms_entries',
           'cms_revisions',
           'admin_sessions',
@@ -38,6 +40,13 @@ export function checkCmsEnvironment(env = process.env) {
           if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table))
             failures.push(`Missing table: ${table}`);
         }
+        if (
+          env.CONTENT_SOURCE === 'sqlite' &&
+          !db
+            .prepare("SELECT 1 FROM cms_settings WHERE key='content_imported' AND value='v1'")
+            .get()
+        )
+          failures.push('SQLite public mode requires completed content import');
         if (db.prepare('PRAGMA quick_check').get().quick_check !== 'ok')
           failures.push('SQLite quick_check failed');
       } finally {
@@ -49,7 +58,7 @@ export function checkCmsEnvironment(env = process.env) {
       );
     }
   }
-  for (const file of ['0001_admin_cms.sql', '0002_admin_security.sql']) {
+  for (const file of ['0001_admin_cms.sql', '0002_admin_security.sql', '0003_public_content.sql']) {
     try {
       accessSync(resolve('database/migrations', file), constants.R_OK);
     } catch {

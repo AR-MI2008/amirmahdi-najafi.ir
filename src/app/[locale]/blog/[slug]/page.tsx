@@ -1,27 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { isLocale, locales, type Locale } from '@/i18n/config';
+import { isLocale, type Locale } from '@/i18n/config';
 import { getDictionary } from '@/i18n/get-dictionary';
 import { buildMetadata } from '@/lib/seo';
-import {
-  categoryLabels,
-  getAdjacentPosts,
-  getPostBySlug,
-  getPostSlugs,
-  readingTime,
-} from '@/lib/content-source';
+import { categoryLabels, getAdjacentPosts, getPostBySlug, readingTime } from '@/lib/content-source';
 import { formatDate } from '@/lib/utils';
 import { breadcrumbSchema, postSchema } from '@/lib/jsonld';
 import { Breadcrumbs, Container, JsonLd, Tick } from '@/components/ui/primitives';
 
-export async function generateStaticParams() {
-  const slugs = await getPostSlugs();
-  return locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
-}
-
-// Drafts and unknown slugs are a real 404, never a rendered shell.
-export const dynamicParams = false;
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 
 export async function generateMetadata({
   params,
@@ -89,7 +78,8 @@ export default async function ArticlePage({
           </h1>
           <p className="mt-5 flex flex-wrap gap-x-4 gap-y-1 tick">
             <span>
-              {dict.blog.published} <time dateTime={post.publishedAt}>{formatDate(post.publishedAt, locale)}</time>
+              {dict.blog.published}{' '}
+              <time dateTime={post.publishedAt}>{formatDate(post.publishedAt, locale)}</time>
             </span>
             {post.updatedAt ? (
               <span>
@@ -123,7 +113,10 @@ export default async function ArticlePage({
               }
               if (block.type === 'p') {
                 return (
-                  <p key={i} className="mt-5 text-[length:var(--text-lg)] leading-[1.75] text-muted">
+                  <p
+                    key={i}
+                    className="mt-5 text-[length:var(--text-lg)] leading-[1.75] text-muted"
+                  >
                     {block.text[locale]}
                   </p>
                 );
@@ -194,7 +187,10 @@ export default async function ArticlePage({
           className="mt-20 grid gap-4 border-t border-line pt-10 md:grid-cols-2"
         >
           {prev ? (
-            <Link href={`/${locale}/blog/${prev.slug}`} className="rounded border border-line p-5 hover:border-[color:var(--border-strong)]">
+            <Link
+              href={`/${locale}/blog/${prev.slug}`}
+              className="rounded border border-line p-5 hover:border-[color:var(--border-strong)]"
+            >
               <span className="tick">{dict.blog.previous}</span>
               <span className="mt-2 block text-[length:var(--text-base)] font-medium">
                 {prev.title[locale]}

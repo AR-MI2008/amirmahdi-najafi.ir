@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { locales } from '@/i18n/config';
-import { getProjects, getPosts } from '@/lib/content-source';
+import { getProjects, getPosts, getProjectModificationDates } from '@/lib/content-source';
 import { absolute } from '@/lib/seo';
 
 /**
@@ -15,10 +15,14 @@ import { absolute } from '@/lib/seo';
  *
  * changeFrequency is omitted for the same reason.
  */
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPaths = ['', '/about', '/projects', '/services', '/blog', '/contact'];
   const projects = await getProjects();
   const posts = await getPosts();
+  const modified = await getProjectModificationDates();
 
   const languagesFor = (path: string) =>
     Object.fromEntries(locales.map((l) => [l === 'fa' ? 'fa-IR' : 'en', absolute(`/${l}${path}`)]));
@@ -42,6 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // docs/CONTENT-FACT-CHECK.md is worked through and real dates land in
         // the content model, add `lastModified: new Date(project.endDate ?? …)`
         // here — not before.
+        ...(modified[project.slug] ? { lastModified: new Date(modified[project.slug]!) } : {}),
         priority: project.featured ? 0.8 : 0.6,
         alternates: { languages: languagesFor(path) },
       });

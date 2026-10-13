@@ -1,15 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { isLocale, locales, type Locale } from '@/i18n/config';
+import { isLocale, type Locale } from '@/i18n/config';
 import { getDictionary } from '@/i18n/get-dictionary';
 import { buildMetadata } from '@/lib/seo';
-import {
-  getProjectBySlug,
-  getNextProject,
-  getProjectSlugs,
-  publishableCapabilities,
-} from '@/lib/content-source';
+import { getProjectBySlug, getNextProject, publishableCapabilities } from '@/lib/content-source';
 import { breadcrumbSchema, projectSchema } from '@/lib/jsonld';
 import { Breadcrumbs, ButtonLink, Container, JsonLd, Tick } from '@/components/ui/primitives';
 import {
@@ -19,13 +14,8 @@ import {
   projectVars,
 } from '@/components/project/case-study';
 
-export async function generateStaticParams() {
-  const slugs = await getProjectSlugs();
-  return locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
-}
-
-// Any slug outside generateStaticParams is a real 404, not a rendered shell.
-export const dynamicParams = false;
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 
 export async function generateMetadata({
   params,
@@ -191,9 +181,7 @@ export default async function ProjectPage({
             <span className="text-[length:var(--text-2xl)] font-medium tracking-[-0.03em] group-hover:text-accent">
               {next.name[locale]}
             </span>
-            <span className="text-[length:var(--text-sm)] text-muted">
-              {next.category[locale]}
-            </span>
+            <span className="text-[length:var(--text-sm)] text-muted">{next.category[locale]}</span>
           </Link>
           <div className="mt-10">
             <ButtonLink href={`/${locale}/contact`} variant="outline">

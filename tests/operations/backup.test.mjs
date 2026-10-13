@@ -16,7 +16,11 @@ test('backs up live WAL, verifies integrity, prevents overwrite and restores rec
     db = new DatabaseSync(source);
   try {
     db.exec('PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0;');
-    for (const migration of ['0001_admin_cms.sql', '0002_admin_security.sql'])
+    for (const migration of [
+      '0001_admin_cms.sql',
+      '0002_admin_security.sql',
+      '0003_public_content.sql',
+    ])
       db.exec(readFileSync(join('database/migrations', migration), 'utf8'));
     db.prepare(
       "INSERT INTO cms_entries(kind,slug,status,title_fa,title_en,data_json) VALUES('post','test','draft','آزمایش','Test','{}')",

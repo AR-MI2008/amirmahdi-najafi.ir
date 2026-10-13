@@ -1,29 +1,17 @@
-/**
- * The content repository. This is the ONLY module in the app that may import
- * src/content directly — eslint.config.mjs enforces that with a
- * no-restricted-imports rule, so the claim is checkable rather than a promise
- * in a comment.
- *
- * MODE: typed content. Payload CMS is NOT installed and NOT running. The
- * scaffold in payload/ is future-facing only; see docs/CMS.md. Nothing in
- * package.json depends on it, so no unused production dependency ships.
- *
- * When Payload is introduced, only this file changes: each async function
- * becomes an awaited query, the signatures stay identical, and no page or
- * component is edited.
+import 'server-only';
+import { cache } from 'react';
+import { getContentMode } from './content-mode';
+/** Server-only content seam. SQLite mode reads published records only and never
+ * falls back to typed files. Typed mode supports an explicit, reversible rollout.
+ * Site configuration and non-CMS services remain version-controlled.
  */
 import {
   projects as localProjects,
-  getProject as localGetProject,
-  featuredProjects as localFeatured,
-  nextProject as localNextProject,
   publishableCapabilities as localPublishableCapabilities,
   projectDate as localProjectDate,
 } from '@/content/projects';
 import {
-  publishedPosts as localPosts,
-  getPost as localGetPost,
-  adjacentPosts as localAdjacent,
+  posts as allLocalPosts,
   readingTime as localReadingTime,
   categoryLabels as localCategoryLabels,
 } from '@/content/posts';
@@ -53,42 +41,50 @@ export type { Metric, SocialLink } from '@/content/site';
 
 /* ---------------------------------------------------------------- projects */
 
-export async function getProjects() {
-  return localProjects;
-}
-
+export const getProjects = cache(async () => {
+  if (getContentMode() === 'typed') return [...localProjects].sort((a, b) => a.order - b.order);
+  const { listPublishedProjects } = await import('./public-content');
+  return listPublishedProjects();
+});
 export async function getFeaturedProjects() {
-  return localFeatured();
+  return (await getProjects()).filter((p) => p.featured);
 }
-
 export async function getProjectBySlug(slug: string) {
-  return localGetProject(slug);
+  return (await getProjects()).find((p) => p.slug === slug);
 }
-
 export async function getNextProject(slug: string) {
-  return localNextProject(slug);
+  const list = await getProjects();
+  const index = list.findIndex((p) => p.slug === slug);
+  const next = list[(index + 1) % list.length];
+  if (!next) throw new Error('No published project available');
+  return next;
 }
-
 export async function getProjectSlugs() {
-  return localProjects.map((p) => p.slug);
+  return (await getProjects()).map((p) => p.slug);
 }
-
-/* ------------------------------------------------------------------- posts */
-
-export async function getPosts() {
-  return localPosts();
-}
-
+export const getPosts = cache(async () => {
+  if (getContentMode() === 'typed')
+    return allLocalPosts
+      .filter((p) => !p.draft)
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  const { listPublishedPosts } = await import('./public-content');
+  return listPublishedPosts();
+});
 export async function getPostBySlug(slug: string) {
-  return localGetPost(slug);
+  return (await getPosts()).find((p) => p.slug === slug);
 }
-
 export async function getAdjacentPosts(slug: string) {
-  return localAdjacent(slug);
+  const list = await getPosts();
+  const index = list.findIndex((p) => p.slug === slug);
+  return index < 0 ? {} : { prev: list[index + 1], next: list[index - 1] };
 }
-
 export async function getPostSlugs() {
-  return localPosts().map((p) => p.slug);
+  return (await getPosts()).map((p) => p.slug);
+}
+export async function getProjectModificationDates(): Promise<Record<string, string>> {
+  if (getContentMode() === 'typed') return {};
+  const { projectModificationDates } = await import('./public-content');
+  return projectModificationDates();
 }
 
 export const categoryLabels = localCategoryLabels;

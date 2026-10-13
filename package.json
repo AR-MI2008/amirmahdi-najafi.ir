@@ -24,7 +24,9 @@
     "cms:preflight": "node --env-file=.env.production scripts/cms-preflight.mjs",
     "cms:backup": "node --env-file=.env.production scripts/cms-backup.mjs",
     "cms:restore": "node scripts/cms-restore.mjs",
-    "cms:init": "node --env-file=.env.production scripts/cms-init.mjs"
+    "cms:init": "node --env-file=.env.production scripts/cms-init.mjs",
+    "cms:export-seed": "node scripts/cms-export-seed.mjs",
+    "cms:import": "node --env-file=.env.production scripts/cms-import.mjs"
   },
   "dependencies": {
     "next": "16.3.4",

@@ -20,7 +20,7 @@ try {
   db = new DatabaseSync(path);
   chmodSync(path, 0o600);
   db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
-  for (const file of ['0001_admin_cms.sql', '0002_admin_security.sql'])
+  for (const file of ['0001_admin_cms.sql', '0002_admin_security.sql', '0003_public_content.sql'])
     db.exec(readFileSync(resolve('database/migrations', file), 'utf8'));
   process.stdout.write('CMS database initialized. Existing records were preserved.\n');
 } catch (error) {

@@ -1,0 +1,1151 @@
+{
+  "version": 1,
+  "sha256": "becfb8e968e1ac042eb2a5de61ce992409628ba1ca8ce796f1e1a4921aaa280d",
+  "entries": [
+    {
+      "kind": "post",
+      "data": {
+        "slug": "fetching-user-supplied-urls-safely",
+        "draft": false,
+        "featured": true,
+        "category": "security",
+        "tags": [
+          "Web Security",
+          "Python",
+          "Django"
+        ],
+        "publishedAt": "2025-11-18",
+        "title": {
+          "fa": "واکشی آدرس‌های ورودی کاربر، بدون ساختن یک موتور SSRF",
+          "en": "Fetching user-supplied URLs without building an SSRF engine"
+        },
+        "excerpt": {
+          "fa": "هر ابزاری که آدرس می‌گیرد و آن را واکشی می‌کند، یک خط بی‌دقتی با تبدیل شدن به اسکنر شبکهٔ داخلی فاصله دارد. این لایه‌ای است که برای وب‌گارد ساختم.",
+          "en": "Any tool that accepts a URL and fetches it is one careless line away from being an internal network scanner. Here is the layer I built for WebGuard."
+        },
+        "blocks": [
+          {
+            "type": "p",
+            "text": {
+              "fa": "وب‌گارد برای بررسی وب‌سایت دیگران ساخته شده، یعنی عملیات اصلی‌اش این است: رشته‌ای از یک بازدیدکنندهٔ ناشناس بگیر و به آن درخواست HTTP بزن. این دقیقاً چیدمان کتاب‌درسی SSRF است. اگر ساده‌انگارانه انجامش دهید، ابزار امنیتی نساخته‌اید؛ یک پروکسی رایگان به شبکهٔ خصوصی خودتان ساخته‌اید.",
+              "en": "WebGuard exists to check other people’s websites, which means its core operation is: take a string from an anonymous visitor and make an HTTP request to it. That is the textbook setup for server-side request forgery. If you do it naively, you have not built a security tool — you have built a free proxy into your own private network."
+            }
+          },
+          {
+            "type": "h2",
+            "text": {
+              "fa": "نسخهٔ ساده‌انگارانه از چهار جهت غلط است",
+              "en": "The naive version is wrong in four ways"
+            }
+          },
+          {
+            "type": "p",
+            "text": {
+              "fa": "مسدود کردن نام‌های آشکار مثل localhost جایی است که بیشتر تلاش‌ها متوقف می‌شوند و بلافاصله شکست می‌خورد. مهاجم می‌تواند یک رکورد DNS عمومی را به 127.0.0.1 اشاره دهد، از آدرس اعشاری‌کدشده استفاده کند، شما را به آدرسی عمومی بفرستد که به آدرسی داخلی ریدایرکت می‌شود، یا در رقابت میان lookup اعتبارسنجی شما و lookup خود کتابخانه برنده شود.",
+              "en": "Blocking obvious hostnames like localhost is where most attempts stop. It fails immediately. An attacker can point a public DNS record at 127.0.0.1, or use a decimal-encoded address, or send you to a public URL that redirects to an internal one, or win the race between your validation lookup and the library’s own lookup."
+            }
+          },
+          {
+            "type": "h2",
+            "text": {
+              "fa": "آنچه واقعاً کار می‌کند",
+              "en": "What actually works"
+            }
+          },
+          {
+            "type": "p",
+            "text": {
+              "fa": "نام میزبان را خودتان resolve کنید. هر آدرس بازگشتی را در برابر بازه‌های رزروشده بررسی کنید — loopback، خصوصی، link-local، unique-local، multicast و معادل‌های IPv6 از جمله شکل‌های IPv4-mapped. سپس دقیقاً به همان IP اعتبارسنجی‌شده وصل شوید و نام میزبان اصلی را در هدر Host و در SNI بفرستید. این پنجرهٔ DNS rebinding را می‌بندد، چون آدرسی که سوکت استفاده می‌کند همان آدرسی است که بررسی کرده‌اید.",
+              "en": "Resolve the hostname yourself. Check every returned address against the reserved ranges — loopback, private, link-local, unique-local, multicast, and the IPv6 equivalents including IPv4-mapped forms. Then connect to the specific IP you validated, sending the original hostname in the Host header and in SNI. That closes the DNS rebinding window, because the address the socket uses is the address you checked."
+            }
+          },
+          {
+            "type": "code",
+            "lang": "python",
+            "code": "import ipaddress, socket\n\nBLOCKED = (\"private\", \"loopback\", \"link_local\", \"reserved\", \"multicast\")\n\ndef is_public(addr: str) -> bool:\n    ip = ipaddress.ip_address(addr)\n    if ip.version == 6 and ip.ipv4_mapped:\n        ip = ip.ipv4_mapped\n    return not (\n        ip.is_private or ip.is_loopback or ip.is_link_local\n        or ip.is_reserved or ip.is_multicast or ip.is_unspecified\n    )\n\ndef resolve_public(host: str, port: int) -> list[str]:\n    infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)\n    addrs = {info[4][0] for info in infos}\n    if not addrs or not all(is_public(a) for a in addrs):\n        raise ValueError(\"target resolves to a non-public address\")\n    return sorted(addrs)"
+          },
+          {
+            "type": "p",
+            "text": {
+              "fa": "توجه کنید که بررسی، عمومی بودن همهٔ آدرس‌های resolve شده را می‌طلبد، نه فقط یکی. نام میزبانی که هم آدرس عمومی و هم خصوصی برمی‌گرداند هدف معتبر نیست؛ یک تلاش است.",
+              "en": "Note that the check requires every resolved address to be public, not just one. A hostname that returns both a public and a private address is not a valid target; it is an attempt."
+            }
+          },
+          {
+            "type": "h2",
+            "text": {
+              "fa": "ریدایرکت‌ها همان بخشی‌اند که فراموش می‌شود",
+              "en": "Redirects are the part people forget"
+            }
+          },
+          {
+            "type": "p",
+            "text": {
+              "fa": "دنبال کردن خودکار ریدایرکت را در کلاینت HTTP خاموش کنید و هر پرش را خودتان مدیریت کنید و هر بار اعتبارسنجی کامل را دوباره اجرا کنید. درخواست اول اعتبارسنجی‌شده‌ای که سه ریدایرکت بعد به سرویس متادیتای شما می‌رسد، همان آسیب‌پذیری با چند قدم اضافه است. همان‌جا تعداد پرش را هم محدود کنید.",
+              "en": "Turn off automatic redirect following in your HTTP client and handle each hop yourself, running the full validation again every time. A validated first request that follows three redirects into your metadata service is the same vulnerability with extra steps. Cap the hop count while you are there."
+            }
+          },
+          {
+            "type": "note",
+            "text": {
+              "fa": "تست‌های این لایه را پیش از نوشتن هر اسکنری که به آن وابسته است نوشتم. این ترتیب انضباط برای انضباط نبود؛ تنها راه اطمینان از این است که بازنویسی شش ماه بعد، بی‌سروصدا این حفره را دوباره باز نکرده باشد.",
+              "en": "I wrote the tests for this layer before writing any scanner that depends on it. That ordering was not discipline for its own sake — it is the only way to know a refactor six months later has not quietly reopened the hole."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "post",
+      "data": {
+        "slug": "building-for-iranian-network-conditions",
+        "draft": false,
+        "featured": false,
+        "category": "engineering",
+        "tags": [
+          "Next.js",
+          "Web Security",
+          "Product Development"
+        ],
+        "publishedAt": "2025-09-30",
+        "updatedAt": "2026-01-14",
+        "title": {
+          "fa": "هر پیش‌فرض فرانت‌اند شبکه‌ای را فرض می‌گیرد که من ندارم",
+          "en": "Every frontend default assumes a network I do not have"
+        },
+        "excerpt": {
+          "fa": "گوگل فونت، اسکریپت تحلیل روی CDN، یک مجموعهٔ آیکون بیرونی. سه خط که همه‌جا کار می‌کنند و اینجا شکست می‌خورند. من چه می‌کنم.",
+          "en": "Google Fonts, a CDN-hosted analytics script, an external icon set. Three lines that work everywhere and fail here. What I do instead."
+        },
+        "blocks": [
+          {
+            "type": "p",
+            "text": {
+              "fa": "بیشتر توصیه‌های فرانت‌اند را کسانی نوشته‌اند که درخواست‌هایشان به مقصد می‌رسد. درخواست‌های من اغلب نمی‌رسند. ساختن برای کاربران داخل ایران یعنی نقاط CDN مسدود می‌شوند، مبدأهای شخص ثالث به‌جای شکست سریع تایم‌اوت می‌شوند، و فونتی که در محیط تست شما در یک میلی‌ثانیه بارگذاری می‌شود، در محیط عملیاتی سی ثانیه صفحه را نگه می‌دارد.",
+              "en": "Most frontend advice is written by people whose requests resolve. Mine often do not. Building for users inside Iran means CDN endpoints get blocked, third-party origins time out rather than failing fast, and a font that loads in a millisecond in your test environment holds the page for thirty seconds in production."
+            }
+          },
+          {
+            "type": "h2",
+            "text": {
+              "fa": "قاعدهٔ اول: هیچ مبدأیی که کنترلش نمی‌کنید",
+              "en": "Rule one: no origin you do not control"
+            }
+          },
+          {
+            "type": "p",
+            "text": {
+              "fa": "فونت‌ها روی سرور خودمان میزبانی می‌شوند. آیکون‌ها SVG درون‌خطی در باندل‌اند. تحلیل، اگر باشد، first-party است یا اصلاً نیست. این وسواس نیست؛ تفاوت میان صفحه‌ای که رندر می‌شود و صفحه‌ای که هنگ می‌کند است. یک اثر جانبی خوشایند هم دارد: سیاست امنیت محتوا خیلی کوتاه‌تر می‌شود، و CSP کوتاه همان CSP‌ای است که واقعاً می‌شود دربارهٔ آن فکر کرد.",
+              "en": "Fonts are self-hosted. Icons are inline SVG in the bundle. Analytics, if any, is first-party or absent. This is not purity — it is the difference between a page that renders and a page that hangs. It also has a pleasant side effect: the content security policy gets much shorter, and a short CSP is a CSP you can actually reason about."
+            }
+          },
+          {
+            "type": "h2",
+            "text": {
+              "fa": "قاعدهٔ دوم: افت کن، هرگز مسدود نکن",
+              "en": "Rule two: degrade, never block"
+            }
+          },
+          {
+            "type": "p",
+            "text": {
+              "fa": "هر چیزی که با API بیرونی حرف می‌زند — فهرست مخازن گیت‌هاب، کاشی نقشه، وب‌هوک — روی سرور و پشت یک تایم‌اوت کوتاه اجرا می‌شود و طوری پیچیده شده که شکست، نتیجهٔ خالی برگرداند نه استثنا. آن بخش سپس هیچ‌چیز رندر نمی‌کند، به‌جای اینکه خطا رندر کند. بازدیدکننده هرگز نباید از مشکلات زیرساخت من باخبر شود.",
+              "en": "Anything that talks to an external API — a GitHub repository list, a map tile, a webhook — runs on the server, behind a short timeout, wrapped so that a failure returns an empty result instead of an exception. The section then renders nothing rather than rendering an error. A visitor should never learn about my infrastructure problems."
+            }
+          },
+          {
+            "type": "code",
+            "lang": "typescript",
+            "code": "export async function safeFetch<T>(\n  url: string,\n  init: RequestInit & { next?: { revalidate: number } },\n  fallback: T,\n): Promise<T> {\n  try {\n    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(4000) });\n    if (!res.ok) return fallback;\n    return (await res.json()) as T;\n  } catch {\n    return fallback;\n  }\n}"
+          },
+          {
+            "type": "h2",
+            "text": {
+              "fa": "قاعدهٔ سوم: چیدمان فارسی، آینه نیست",
+              "en": "Rule three: the Persian layout is not a mirror"
+            }
+          },
+          {
+            "type": "p",
+            "text": {
+              "fa": "گذاشتن dir=\"rtl\" جعبه‌ها را برمی‌گرداند و همان‌جا تمام می‌شود. فارسی به ارتفاع خط متفاوت، نبودِ فاصلهٔ حروف، قلمی با متریک واقعی فارسی و اعداد انتخاب‌شده بر حسب زمینه نیاز دارد — رقم فارسی در متن، رقم لاتین در کد و آدرس. صفحه‌های فارسی را جدا تست کنید وگرنه یک سایت انگلیسیِ آینه‌شده منتشر می‌کنید.",
+              "en": "Setting dir=\"rtl\" flips the boxes and stops there. Persian needs different line height, no letter-spacing, a typeface with real Persian metrics, and numerals chosen per context — Persian digits in prose, Latin digits in code and URLs. Test the Persian pages separately or you will ship a mirrored English site."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "project",
+      "data": {
+        "slug": "pad-system",
+        "draft": false,
+        "name": {
+          "fa": "سامانهٔ پاد",
+          "en": "PAD System"
+        },
+        "category": {
+          "fa": "پلتفرم مدیریت بحران",
+          "en": "Crisis management platform"
+        },
+        "role": {
+          "fa": "بنیان‌گذار، مدیرعامل و توسعه‌دهنده",
+          "en": "Founder, CEO & Developer"
+        },
+        "status": "live",
+        "featured": true,
+        "order": 1,
+        "summary": {
+          "fa": "پلتفرم مدیریت بحران برای شهروندان ایرانی: نقشهٔ بحران، اخبار راستی‌آزمایی‌شده، سامانهٔ مفقودین و درخواست کمک.",
+          "en": "A crisis-management platform for Iranian citizens: a live crisis map, verified news, a missing-persons registry and aid requests."
+        },
+        "intro": {
+          "fa": "پاد محصولی است که کاملاً مال خودم است. دلیل وجودش این است که در بحران، اطلاعاتی که مردم لازم دارند میان کانال‌هایی پخش است که یکدیگر را نقض می‌کنند. پاد یک نقشهٔ راستی‌آزمایی‌شده، خط‌لولهٔ خبری و سامانهٔ درخواست را پشت یک اپلیکیشن نصب‌شدنی جمع می‌کند.",
+          "en": "PAD is the product I own completely. It exists because during a crisis the information people need is scattered across channels that contradict each other. PAD puts a verified map, a news pipeline and a request system behind one installable app."
+        },
+        "tech": [
+          "Django",
+          "DRF",
+          "Next.js",
+          "TypeScript",
+          "PostgreSQL",
+          "Redis",
+          "Celery",
+          "Docker",
+          "Nginx"
+        ],
+        "links": [
+          {
+            "label": {
+              "fa": "pad-system.ir",
+              "en": "pad-system.ir"
+            },
+            "href": "https://pad-system.ir"
+          }
+        ],
+        "canonicalUrl": "https://pad-system.ir",
+        "theme": {
+          "motif": "radar",
+          "glow": 0.55,
+          "glowLight": 0.3,
+          "dark": {
+            "background": "#080c10",
+            "surface": "#0d141c",
+            "accent": "#00b4d8",
+            "accentSecondary": "#0077b6",
+            "foreground": "#eef6fa",
+            "muted": "#8fa3b0"
+          },
+          "light": {
+            "background": "#ecf4f9",
+            "surface": "#ffffff",
+            "accent": "#00637f",
+            "accentSecondary": "#004f6b",
+            "foreground": "#06171f",
+            "muted": "#4c6470"
+          }
+        },
+        "capabilities": [
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "نقشهٔ بحران با گزارش‌های تأییدشده",
+              "en": "Crisis map with verified reports"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "خط‌لولهٔ خودکار اخبار راستی‌آزمایی‌شده",
+              "en": "Automated verified-news pipeline"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "سامانهٔ ثبت مفقودین",
+              "en": "Missing-persons registry"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "درخواست کمک و دکمهٔ اضطرار",
+              "en": "Aid requests and SOS action"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "اپلیکیشن نصب‌شدنی و بستهٔ اندروید",
+              "en": "Installable PWA and Android package"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "ورود بیومتریک با WebAuthn",
+              "en": "Biometric sign-in via WebAuthn"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "کنسول اپراتور برای هماهنگ‌کنندگان منطقه‌ای",
+              "en": "Operator console for regional coordinators"
+            }
+          }
+        ],
+        "sections": [
+          {
+            "id": "problem",
+            "title": {
+              "fa": "مسئله",
+              "en": "Problem"
+            },
+            "body": {
+              "fa": [
+                "در بحران، گلوگاه نبودِ اطلاعات نیست؛ نبودِ اطلاعاتی است که بشود بر اساسش عمل کرد. گزارش‌ها از کانال‌های پیام‌رسان می‌رسند، بدون منبع، بدون موقعیت و بدون راهی برای تشخیص روایت دست‌اول از اسکرین‌شاتِ اسکرین‌شات.",
+                "مسئلهٔ دوم عدم‌تقارن است. کسی که کمک لازم دارد و کسی که می‌تواند کمک کند روی یک شبکه‌اند، اما ساختار مشترکی نیست که یک درخواست مشخص را به یک پاسخ‌دهندهٔ مشخص وصل کند."
+              ],
+              "en": [
+                "In a crisis the bottleneck is not the absence of information — it is the absence of information you can act on. Reports arrive through messaging channels with no provenance, no location and no way to tell a first-hand account from a screenshot of a screenshot.",
+                "The second problem is asymmetry. People who need help and people who can give it are on the same networks, but there is no shared structure that connects a specific request to a specific responder."
+              ]
+            }
+          },
+          {
+            "id": "product",
+            "title": {
+              "fa": "چه چیزی ساختم",
+              "en": "What I built"
+            },
+            "body": {
+              "fa": [
+                "پاد چهار سطح روی یک مدل داده است. نقشهٔ بحران که فقط گزارش‌های تأییدشده را نمایش می‌دهد. خط‌لولهٔ خبری که از منبعی مشخص می‌خواند، آن را نرمال‌سازی می‌کند و روی سایت و کانال‌های پیام‌رسان بازنشر می‌دهد. سامانهٔ مفقودین با رکورد ساختاریافته به‌جای متن آزاد. و سامانهٔ درخواست، که در آن هر درخواست کمک یک شیء درجه‌یک با ماشین حالت است.",
+                "خروجی هم به‌صورت PWA نصب‌شدنی است و هم بستهٔ اندروید؛ چون در لحظه‌ای که مردم به آن نیاز دارند، یک آیکون روی صفحهٔ گوشی از آدرسی که باید حفظ شود بهتر است."
+              ],
+              "en": [
+                "PAD is four surfaces on one data model. A crisis map that only renders reports that passed review. A news pipeline that ingests from a defined source, normalises it and republishes it to the site and to messaging channels. A missing-persons registry with a structured record rather than free text. And a request system where an aid request is a first-class object with a state machine.",
+                "It ships as an installable PWA and as an Android package, because in the moment people need it, an app icon on the home screen beats a URL they have to remember."
+              ]
+            }
+          },
+          {
+            "id": "engineering",
+            "title": {
+              "fa": "مهندسی",
+              "en": "Engineering"
+            },
+            "body": {
+              "fa": [
+                "بک‌اند با Django و Django REST Framework، فرانت با Next.js و TypeScript، وضعیت روی PostgreSQL و هر کاری که نباید داخل چرخهٔ درخواست انجام شود روی Redis و Celery. کل استک زیر Docker Compose پشت Nginx با تمدید خودکار گواهی اجرا می‌شود.",
+                "خط‌لولهٔ خبری روی ماشینی جدا از اپلیکیشن اجرا می‌شود. این تصمیم عمدی است: دریافت داده پرسروصداترین و شکننده‌ترین بخش سیستم است و نباید بتواند کل پلتفرم را با خودش پایین بیاورد.",
+                "ورود از WebAuthn پشتیبانی می‌کند، بنابراین کاربر بازگشته با همان حسگر بیومتریک گوشی‌اش احراز هویت می‌شود، نه رمزی که جای دیگر هم از آن استفاده می‌کند."
+              ],
+              "en": [
+                "Django and Django REST Framework on the backend, Next.js and TypeScript on the front, PostgreSQL for state, Redis and Celery for anything that must not happen inside a request cycle. The whole stack runs under Docker Compose behind Nginx with automated certificate renewal.",
+                "The news pipeline runs on a separate machine from the application. That is deliberate: ingestion is the noisiest, most failure-prone part of the system, and it should not be able to take the platform down with it.",
+                "Sign-in supports WebAuthn, so a returning user authenticates with the biometric sensor already on their phone instead of a password they will reuse elsewhere."
+              ]
+            }
+          },
+          {
+            "id": "design",
+            "title": {
+              "fa": "سیستم طراحی",
+              "en": "Design system"
+            },
+            "body": {
+              "fa": [
+                "پاد مثل یک ابزار طراحی شده، نه یک سایت خبری. فیروزه‌ای برای رابط، یک قرمز رزروشده فقط برای وضعیت اضطراری واقعی، و سبز برای وضعیت ایمنِ تأییدشده. قرمز عمداً کم استفاده می‌شود: رابطی که مدام فریاد بزند، دیگر خوانده نمی‌شود.",
+                "همه‌چیز فارسی‌محور و راست‌به‌چپ است؛ اعداد، تاریخ‌ها و تایپوگرافی برای فارسی تنظیم شده‌اند، نه اینکه روی چیدمان لاتین وصله شوند."
+              ],
+              "en": [
+                "PAD is designed as an instrument, not a news site. Cyan for the interface, a single reserved red for genuine emergency states, green for confirmed-safe. The red is used sparingly on purpose: an interface that shouts constantly stops being read.",
+                "Everything is Persian-first and right-to-left by default, with numerals, dates and typography set for Persian rather than retrofitted onto a Latin layout."
+              ]
+            }
+          },
+          {
+            "id": "challenges",
+            "title": {
+              "fa": "چالش‌ها",
+              "en": "Challenges"
+            },
+            "body": {
+              "fa": [
+                "ساختن برای شرایط شبکهٔ ایران هر پیش‌فرضی را عوض می‌کند. به CDN شخص ثالث نمی‌شود تکیه کرد، پس فایل‌ها و فونت‌ها روی سرور خودمان میزبانی می‌شوند. درخواست‌های خروجی ممکن است به دلایلی بی‌ربط به کد شما شکست بخورند، پس هر چیزی که با دنیای بیرون حرف می‌زند باید افت کیفیت کند، نه خطا بدهد.",
+                "مسئلهٔ سخت‌تر ویراستاری است نه فنی: اینکه چه چیزی «تأییدشده» حساب می‌شود و چطور این سیاست در رابط کاربری دیده شود، نه اینکه در ذهن یک ناظر بماند."
+              ],
+              "en": [
+                "Building for Iranian network conditions changes every default. Third-party CDNs cannot be relied on, so assets and fonts are self-hosted. Outbound API calls may fail for reasons that have nothing to do with your code, so everything that talks to the outside world has to degrade instead of erroring.",
+                "The harder problem is editorial, not technical: deciding what counts as verified, and making that policy visible in the interface rather than hidden in a moderator’s head."
+              ]
+            }
+          },
+          {
+            "id": "lessons",
+            "title": {
+              "fa": "چه یاد گرفتم",
+              "en": "What I learned"
+            },
+            "body": {
+              "fa": [
+                "مالکیت کامل یک محصول یعنی تصمیم‌های جالب معمولاً فنی نیستند. انتخاب اینکه پاد چه چیزی را منتشر نمی‌کند، بیشتر از هر تصمیم معماری پلتفرم را شکل داد.",
+                "جدا کردن زیرسیستم شکننده روی ماشین مستقل، پربازده‌ترین تصمیم بود. دسته‌ای از قطعی‌های کامل را به دسته‌ای از قابلیت‌های تضعیف‌شده تبدیل کرد."
+              ],
+              "en": [
+                "Owning a product end to end means the interesting decisions are rarely the technical ones. Choosing what PAD refuses to publish shaped the platform more than any architectural choice.",
+                "Separating the fragile subsystem onto its own machine was the single highest-return decision. It converted a class of total outages into a class of degraded features."
+              ]
+            }
+          }
+        ],
+        "gallery": []
+      }
+    },
+    {
+      "kind": "project",
+      "data": {
+        "slug": "webguard",
+        "draft": false,
+        "name": {
+          "fa": "وب‌گارد",
+          "en": "WebGuard"
+        },
+        "category": {
+          "fa": "ابزار بررسی وضعیت امنیتی وب",
+          "en": "Web security posture checker"
+        },
+        "role": {
+          "fa": "سازنده و مهندس ارشد",
+          "en": "Creator & Lead Engineer"
+        },
+        "status": "in-development",
+        "featured": true,
+        "order": 2,
+        "summary": {
+          "fa": "یک دامنه وارد کنید و گزارشی قابل‌توضیح از ۰ تا ۱۰۰ دربارهٔ HTTPS، TLS، هدرهای امنیتی، DNS و پیکربندی بگیرید. فقط بررسی غیرفعال.",
+          "en": "Enter a domain, get an explainable 0–100 report on HTTPS, TLS, security headers, DNS and configuration. Passive checks only."
+        },
+        "intro": {
+          "fa": "وب‌گارد به یک پرسش خوب پاسخ می‌دهد: آیا این وب‌سایت همان‌طور پیکربندی شده که یک تیم توانمند پیکربندی می‌کرد؟ فقط چیزی را می‌خواند که مرورگر هم می‌تواند ببیند، شفاف امتیاز می‌دهد و دلیل هر کسری را توضیح می‌دهد.",
+          "en": "WebGuard answers one question well: is this website configured the way a competent team would configure it? It reads only what a browser could already see, scores it transparently, and explains every deduction."
+        },
+        "tech": [
+          "Django",
+          "DRF",
+          "Celery",
+          "Redis",
+          "PostgreSQL",
+          "Next.js",
+          "TypeScript",
+          "Tailwind CSS",
+          "Docker"
+        ],
+        "links": [
+          {
+            "label": {
+              "fa": "مخزن کد",
+              "en": "Repository"
+            },
+            "href": "https://github.com/AR-MI2008/webguard"
+          }
+        ],
+        "canonicalUrl": "https://github.com/AR-MI2008/webguard",
+        "theme": {
+          "motif": "flow",
+          "glow": 0.4,
+          "glowLight": 0.22,
+          "dark": {
+            "background": "#080b12",
+            "surface": "#151c28",
+            "accent": "#22d3ee",
+            "accentSecondary": "#3b82f6",
+            "foreground": "#eaf4f8",
+            "muted": "#93a3b5"
+          },
+          "light": {
+            "background": "#eff7fa",
+            "surface": "#ffffff",
+            "accent": "#0e6f86",
+            "accentSecondary": "#1d4ed8",
+            "foreground": "#08151c",
+            "muted": "#4f6270"
+          }
+        },
+        "capabilities": [
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "لایهٔ درخواست ایمن در برابر SSRF با اتصال به IP پین‌شده",
+              "en": "SSRF-safe request layer with pinned-IP connections"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "بررسی HTTPS و گواهی TLS",
+              "en": "HTTPS and TLS certificate inspection"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "تحلیل هدرهای امنیتی",
+              "en": "Security header analysis"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "بررسی رکوردهای DNS و ایمیل به‌عنوان اطلاعات",
+              "en": "DNS and mail-record checks reported as information"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "امتیاز وزن‌دار و قابل‌توضیح ۰ تا ۱۰۰",
+              "en": "Weighted, explainable 0–100 score"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "داشبورد نتایج و صفحهٔ اشتراک‌گذاری اسکن",
+              "en": "Results dashboard and shareable scan pages"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "حساب کاربری، اسکن زمان‌بندی‌شده و هشدار تغییرات",
+              "en": "Accounts, scheduled re-scans and change alerts"
+            }
+          }
+        ],
+        "sections": [
+          {
+            "id": "goal",
+            "title": {
+              "fa": "هدف",
+              "en": "Goal"
+            },
+            "body": {
+              "fa": [
+                "بیشتر صاحبان سایت نمی‌دانند پیکربندی‌شان درست است یا نه، و ابزارهایی که این را می‌گویند یا محصول سازمانی‌اند یا یک نمرهٔ حرفیِ بی‌توضیح. وب‌گارد حد وسط است: رایگان، عمومی و دقیق دربارهٔ اینکه چرا امتیاز کم کرده.",
+                "این ابزار صراحتاً ابزار تست نفوذ نیست. اکسپلویت نمی‌کند، حملهٔ جست‌وجوی فراگیر ندارد، پورت اسکن نمی‌کند و دایرکتوری شمارش نمی‌کند. فقط پیکربندی قابل‌مشاهدهٔ عمومی را می‌خواند."
+              ],
+              "en": [
+                "Most site owners do not know whether their configuration is sound, and the tools that tell them are either enterprise products or unexplained letter grades. WebGuard is the middle: free, public, and specific about why it deducted a point.",
+                "It is explicitly not a penetration-testing tool. It does not exploit, brute force, scan ports or enumerate directories. It reads publicly observable configuration and nothing else."
+              ]
+            }
+          },
+          {
+            "id": "safety",
+            "title": {
+              "fa": "فلسفهٔ امنیتی",
+              "en": "Security philosophy"
+            },
+            "body": {
+              "fa": [
+                "ابزاری که آدرس دلخواه کاربر را واکشی می‌کند، اگر از اولین کامیت برایش طراحی نکنید، یک موتور SSRF است. وب‌گارد نام میزبان را resolve می‌کند، فضای آدرس خصوصی، loopback، link-local و رزروشده را رد می‌کند و سپس دقیقاً به همان IP وصل می‌شود تا DNS زیر پای درخواست عوض نشود. تغییر مسیرها در هر پرش دوباره اعتبارسنجی می‌شوند.",
+                "این ابتدایی‌های ایمنی — نرمال‌سازی آدرس، resolve، مدیریت ریدایرکت، فیلتر آدرس و اتصال پین‌شده — پیش از آنکه هیچ قابلیت اسکنری به آن‌ها وابسته شود، همراه با تست نوشته شدند.",
+                "دو قاعده بر خروجی حاکم است. هرگز نتیجه نساز: اگر بررسی‌ای اجرا نشد، UNKNOWN گزارش می‌شود و از مخرج امتیاز حذف می‌شود، نه اینکه شکست حساب شود. و هرگز سایتی را فقط به‌خاطر نبودِ یک هدر «آسیب‌پذیر» ننام؛ نبودِ هدر یعنی نبودِ هدر."
+              ],
+              "en": [
+                "A tool that fetches arbitrary user-supplied URLs is a server-side request forgery engine unless you design against it from the first commit. WebGuard resolves the hostname, rejects private, loopback, link-local and reserved address space, then connects to the exact resolved IP so DNS cannot change under the request. Redirects are re-validated at every hop.",
+                "Those safety primitives — URL normalisation, resolution, redirect handling, address filtering, pinned connections — were built with tests before any scanner feature was allowed to depend on them.",
+                "Two rules govern output. Never invent a result: if a check could not run, it reports UNKNOWN and is excluded from the score denominator rather than counted as a failure. And never call a site vulnerable because a header is missing — a missing header is a missing header."
+              ]
+            }
+          },
+          {
+            "id": "scoring",
+            "title": {
+              "fa": "امتیازدهی",
+              "en": "Scoring"
+            },
+            "body": {
+              "fa": [
+                "امتیاز وزن‌دار است: هدرهای امنیتی ۳۵ درصد، HTTPS و TLS ۲۵، پیکربندی ۲۰، DNS و زیرساخت ۱۰ و کارایی پایهٔ پاسخ ۱۰. بررسی‌هایی که UNKNOWN یا NOT APPLICABLE برمی‌گردانند از مخرج خارج می‌شوند، پس هیچ سایتی بابت بررسی‌ای که اجرا نشده جریمه نمی‌شود.",
+                "SPF و DMARC اطلاعاتی گزارش می‌شوند، نه شکست امنیتی. مهم‌اند، اما یک سایت معرفی بدون DMARC به آن معنایی که کلمه القا می‌کند ناامن نیست."
+              ],
+              "en": [
+                "The score is weighted: security headers 35 percent, HTTPS and TLS 25, configuration 20, DNS and infrastructure 10, basic response performance 10. Checks that return UNKNOWN or NOT APPLICABLE leave the denominator, so a site is never punished for a check that could not run.",
+                "SPF and DMARC are reported as informational rather than security failures. They matter, but a marketing site without DMARC is not insecure in the way the word implies."
+              ]
+            }
+          },
+          {
+            "id": "architecture",
+            "title": {
+              "fa": "معماری",
+              "en": "Architecture"
+            },
+            "body": {
+              "fa": [
+                "بک‌اند Django و DRF اسکن‌ها را به‌صورت وظیفهٔ Celery اجرا می‌کند تا یک هدف کُند هیچ‌وقت worker وب را اشغال نکند. PostgreSQL رکورد اسکن‌ها را نگه می‌دارد و Redis واسط صف است. فرانت‌اند Next.js با App Router و TypeScript است.",
+                "کنترل سوءاستفاده شامل محدودیت نرخ به‌ازای IP، فاصلهٔ اجباری برای هر هدف، و استفادهٔ مجدد از اسکن اخیر در بازه‌ای کوتاه است تا اسکن دوباره پس از تغییر پیکربندی ممکن بماند. IP خام کاربر هرگز ذخیره نمی‌شود؛ شناسهٔ سوءاستفاده یک هش کلیددار با راز سمت سرور است و رکوردهای اسکن پس از سی روز مشمول حذف خودکار می‌شوند."
+              ],
+              "en": [
+                "A Django and DRF backend runs scans as Celery tasks so a slow target never occupies a web worker. PostgreSQL holds scan records, Redis is the broker. The frontend is Next.js with the App Router and TypeScript.",
+                "Abuse controls are per-IP rate limits, a per-target cooldown, and reuse of a recent scan within a short window so re-running a scan after a config change is still possible. Raw client IPs are never stored — the abuse identifier is a keyed hash with a server-side secret, and scan records become eligible for automatic deletion after thirty days."
+              ]
+            }
+          },
+          {
+            "id": "status",
+            "title": {
+              "fa": "وضعیت توسعه",
+              "en": "Development status"
+            },
+            "body": {
+              "fa": [
+                "لایهٔ ایمنی، مجموعهٔ کاوشگرها، موتور امتیازدهی و API ساخته شده‌اند. داشبورد نتایج در حال توسعه است. حساب کاربری، پایش و اعلان‌ها در نقشهٔ راه‌اند و عمداً ساخته نشده‌اند؛ معماری جا برایشان باز گذاشته بدون آنکه وانمود کند وجود دارند."
+              ],
+              "en": [
+                "The safety layer, probe set, scoring engine and API are built. The results dashboard is in progress. Accounts, monitoring and notifications are on the roadmap and deliberately not built — the architecture leaves room for them without pretending they exist."
+              ]
+            }
+          }
+        ],
+        "gallery": []
+      }
+    },
+    {
+      "kind": "project",
+      "data": {
+        "slug": "melamin-layegh",
+        "draft": false,
+        "name": {
+          "fa": "ملامین لایق",
+          "en": "Melamin Layegh"
+        },
+        "category": {
+          "fa": "سایت فروشگاهی تولیدکننده",
+          "en": "Manufacturer e-commerce site"
+        },
+        "role": {
+          "fa": "توسعه‌دهندهٔ وب (پروژهٔ مشتری)",
+          "en": "Web Developer (client project)"
+        },
+        "status": "delivered",
+        "featured": true,
+        "order": 3,
+        "summary": {
+          "fa": "سایت کامل وردپرس و ووکامرس برای یک تولیدکنندهٔ ظروف ملامین ایرانی: قالب اختصاصی، ۹۱ محصول، ۱۰ دسته و راه‌اندازی ایمیل.",
+          "en": "A full WordPress and WooCommerce site for an Iranian melamine tableware manufacturer: custom theme, 91 products, 10 categories, mail delivery."
+        },
+        "intro": {
+          "fa": "یک پروژهٔ تجاری، و تعادلی مفید در برابر بقیهٔ این نمونه‌کارها. صورت‌مسئله «هوشمندانه بودن» نبود؛ این بود که تولیدکننده‌ای که از ۱۳۶۰ در حال تولید است، کاتالوگی داشته باشد که مشتریانش واقعاً بتوانند مرور کنند.",
+          "en": "A commercial project, and a useful counterweight to the rest of this portfolio. The brief was not to be clever. It was to give a manufacturer that has been producing since 1360 a catalogue their customers can actually browse."
+        },
+        "tech": [
+          "WordPress",
+          "WooCommerce",
+          "PHP 8",
+          "MySQL",
+          "cPanel"
+        ],
+        "links": [
+          {
+            "label": {
+              "fa": "melaminelayegh.ir",
+              "en": "melaminelayegh.ir"
+            },
+            "href": "https://melaminelayegh.ir"
+          }
+        ],
+        "canonicalUrl": "https://melaminelayegh.ir",
+        "theme": {
+          "motif": "catalogue",
+          "glow": 0.18,
+          "glowLight": 0.12,
+          "dark": {
+            "background": "#17130f",
+            "surface": "#221c16",
+            "accent": "#d08a4e",
+            "accentSecondary": "#a9682f",
+            "foreground": "#f5efe8",
+            "muted": "#ab9c8c"
+          },
+          "light": {
+            "background": "#faf4ec",
+            "surface": "#ffffff",
+            "accent": "#8a4b18",
+            "accentSecondary": "#6d3a11",
+            "foreground": "#221708",
+            "muted": "#6b5945"
+          }
+        },
+        "capabilities": [
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "قالب اختصاصی وردپرس",
+              "en": "Custom WordPress theme"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "۹۱ محصول در ۱۰ دسته",
+              "en": "91 products across 10 categories"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "کاتالوگ ووکامرس و مسیر استعلام",
+              "en": "WooCommerce catalogue and enquiry flow"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "ارسال ایمیل با SMTP دامنه",
+              "en": "Domain-authenticated SMTP delivery"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "چیدمان واکنش‌گرای فارسی‌محور",
+              "en": "Persian-first responsive layout"
+            }
+          }
+        ],
+        "sections": [
+          {
+            "id": "context",
+            "title": {
+              "fa": "زمینهٔ کسب‌وکار",
+              "en": "Business context"
+            },
+            "body": {
+              "fa": [
+                "ملامین لایق تولیدکنندهٔ ظروف ملامین است و از سال ۱۳۶۰ فعالیت می‌کند. فروششان از طریق رابطهٔ عمده‌فروشی و استعلام مستقیم است، نه خرید آنی. سایت باید به همین واقعیت خدمت می‌کرد، نه اینکه ادای یک فروشگاه مصرفی را دربیاورد."
+              ],
+              "en": [
+                "Melamin Layegh manufactures melamine tableware and has been operating since 1360 in the Iranian calendar. Their sales happen through wholesale relationships and direct enquiry, not impulse checkout. The website had to serve that reality rather than imitate a consumer marketplace."
+              ]
+            }
+          },
+          {
+            "id": "challenge",
+            "title": {
+              "fa": "چالش",
+              "en": "The challenge"
+            },
+            "body": {
+              "fa": [
+                "نود و یک محصول در دسته‌ای مثل ظروف، در شبکهٔ بندانگشتی شبیه هم به نظر می‌رسند. کاسه، کاسه است. اطلاعاتی که آن‌ها را متمایز می‌کند — اندازه، ترکیب سرویس، رنگ‌بندی — دقیقاً همان چیزی است که آرشیو پیش‌فرض ووکامرس دفن می‌کند.",
+                "محدودیت دوم عملیاتی بود: مشتری باید بعد از تحویل، بدون تماس با من بتواند خودش محصول اضافه کند."
+              ],
+              "en": [
+                "Ninety-one products in a category like tableware look alike in a thumbnail grid. A bowl is a bowl. The information that distinguishes them — size, set composition, colourway — is exactly the information a default WooCommerce archive buries.",
+                "The second constraint was operational: the client had to be able to add products themselves after handover, without calling me."
+              ]
+            }
+          },
+          {
+            "id": "implementation",
+            "title": {
+              "fa": "پیاده‌سازی",
+              "en": "Implementation"
+            },
+            "body": {
+              "fa": [
+                "قالب اختصاصی به‌جای قالب آماده، تا آرشیو محصول بتواند ویژگی‌های متمایزکننده را در سطح کارت نشان دهد و ساختار دسته‌بندی با شیوهٔ واقعی دسته‌بندی کارخانه بخواند — ده دسته، برگرفته از کاتالوگ خودشان.",
+                "ورود کاتالوگ به‌جای وارد کردن دستی، اسکریپت‌نویسی شد؛ همین ۹۱ محصول را تکرارپذیر کرد و به مشتری اجازه داد کل مجموعه را پیش از انتشار بازبینی کند.",
+                "ایمیل از طریق SMTP احرازشده روی دامنهٔ خود سایت ارسال می‌شود، نه میلر پیش‌فرض هاست؛ در نتیجه اعلان استعلام‌ها واقعاً می‌رسد و در اسپم نمی‌افتد.",
+                "سایت روی هاست cPanel با PHP 8 اجرا می‌شود."
+              ],
+              "en": [
+                "A custom theme rather than a purchased one, so the product archive could surface the distinguishing attributes at card level and the category structure could match how the factory actually organises its output — ten categories, mapped from their own catalogue.",
+                "The catalogue import was scripted rather than entered by hand, which made the ninety-one products reproducible and let the client review the whole set before launch.",
+                "Mail is sent through authenticated SMTP on the site’s own domain rather than the host’s default mailer, so enquiry notifications actually arrive instead of landing in spam.",
+                "The site runs on cPanel hosting with PHP 8."
+              ]
+            }
+          },
+          {
+            "id": "outcome",
+            "title": {
+              "fa": "نتیجه",
+              "en": "Outcome"
+            },
+            "body": {
+              "fa": [
+                "سایت منتشر شده و مشتری خودش کاتالوگ را مدیریت می‌کند. آمار بازدید یا فروش اینجا منتشر نمی‌کنم، چون اندازه‌گیری‌ای ندارم که پشتش بایستم؛ و مطالعهٔ موردی با عدد ساختگی از مطالعهٔ موردی بدون عدد بی‌ارزش‌تر است."
+              ],
+              "en": [
+                "The site is live and the client manages the catalogue themselves. I am not publishing traffic or sales figures here, because I do not have measurements I can stand behind — and a case study with invented numbers is worth less than one without them."
+              ]
+            }
+          }
+        ],
+        "gallery": []
+      }
+    },
+    {
+      "kind": "project",
+      "data": {
+        "slug": "hypernet",
+        "draft": false,
+        "name": {
+          "fa": "هایپرنت",
+          "en": "HyperNet"
+        },
+        "category": {
+          "fa": "سرویس اتصال و زیرساخت",
+          "en": "Connectivity service & infrastructure"
+        },
+        "role": {
+          "fa": "بنیان‌گذار و مهندس زیرساخت",
+          "en": "Founder & Infrastructure Engineer"
+        },
+        "status": "live",
+        "featured": true,
+        "order": 4,
+        "summary": {
+          "fa": "سرویس اتصال با اشتراک خودکار از طریق ربات تلگرام، روی سرورهایی که خودم راه‌اندازی، مهاجرت و پایش می‌کنم.",
+          "en": "A connectivity service with self-serve subscriptions through a Telegram bot, running on servers I provision, migrate and monitor myself."
+        },
+        "intro": {
+          "fa": "هایپرنت پروژه‌ای است که عملیات را به من یاد داد. سطح محصول کوچک است — یک پلن انتخاب کن، کانفیگ بگیر — اما هرچه پشتش هست کار زیرساختی است: راه‌اندازی، مهاجرت، پایش و بازیابی وقتی مسیری از کار می‌افتد.",
+          "en": "HyperNet is the project that taught me operations. The product surface is small — pick a plan, get a config — but everything behind it is infrastructure work: provisioning, migration, monitoring, and recovering when a route stops working."
+        },
+        "tech": [
+          "Linux",
+          "Python",
+          "Telegram Bot API",
+          "Nginx",
+          "Docker",
+          "PostgreSQL"
+        ],
+        "links": [],
+        "theme": {
+          "motif": "topology",
+          "glow": 0.35,
+          "glowLight": 0.2,
+          "dark": {
+            "background": "#070910",
+            "surface": "#0e1220",
+            "accent": "#7c9cff",
+            "accentSecondary": "#4f6ef7",
+            "foreground": "#eef0fb",
+            "muted": "#99a1c0"
+          },
+          "light": {
+            "background": "#f1f2fb",
+            "surface": "#ffffff",
+            "accent": "#3a45c4",
+            "accentSecondary": "#2b34a8",
+            "foreground": "#0b0e26",
+            "muted": "#565d85"
+          }
+        },
+        "capabilities": [
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "ربات اشتراک خودکار",
+              "en": "Self-serve subscription bot"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "راه‌اندازی سرور در چند منطقه",
+              "en": "Multi-region server provisioning"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "فرایند مهاجرت کامل زیرساخت",
+              "en": "Full infrastructure migration process"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "داشبورد عملیاتی سلامت سرویس",
+              "en": "Operational dashboard for service health"
+            }
+          }
+        ],
+        "sections": [
+          {
+            "id": "product",
+            "title": {
+              "fa": "محصول",
+              "en": "The product"
+            },
+            "body": {
+              "fa": [
+                "هایپرنت اشتراک اتصال می‌فروشد. کل مسیر مشتری — انتخاب پلن، پرداخت، دریافت کانفیگ، تمدید — از طریق ربات تلگرام انجام می‌شود، چون کاربران همان‌جا هستند و چون ربات نه فروشگاه اپلیکیشن دارد، نه مرحلهٔ نصب، نه هزینهٔ پهنای باند برای باز شدن.",
+                "ربات در نسخهٔ هشتم بازنویسی است. هر بازنویسی، وضعیتی را که در جای اشتباه انباشته شده بود حذف کرد."
+              ],
+              "en": [
+                "HyperNet sells connectivity subscriptions. The entire customer journey — choosing a plan, paying, receiving configuration, renewing — runs through a Telegram bot, because that is where the users already are and because a bot has no app store, no install step and no bandwidth cost to open.",
+                "The bot is on its eighth rebuild. Each rewrite removed state that had accumulated in the wrong place."
+              ]
+            }
+          },
+          {
+            "id": "infrastructure",
+            "title": {
+              "fa": "زیرساخت",
+              "en": "Infrastructure"
+            },
+            "body": {
+              "fa": [
+                "سرورها در مراکز دادهٔ اروپا راه‌اندازی می‌شوند و به‌عنوان قطعهٔ قابل‌تعویض با آن‌ها رفتار می‌شود. آموزنده‌ترین کار، مهاجرت کامل سرویس به زیرساخت جدید در فرانکفورت بود: انتقال حساب‌ها، پیکربندی و خود ربات، بدون آنکه کاربر کاری انجام دهد.",
+                "آن تجربه ثابت کرد که کیفیت هر مهاجرت به اندازهٔ کیفیت مستندش است. مهاجرت دوم کسری از زمان اولی طول کشید، صرفاً چون اولی نوشته شده بود."
+              ],
+              "en": [
+                "Servers are provisioned in European data centres and treated as replaceable. The most instructive piece of work was a complete migration of the service onto new infrastructure in Frankfurt: moving accounts, configuration and the bot itself without asking users to do anything.",
+                "What that exercise proved is that a migration is only as good as the runbook. The second migration took a fraction of the time of the first, purely because the first one was written down."
+              ]
+            }
+          },
+          {
+            "id": "claims",
+            "title": {
+              "fa": "آنچه ادعا نمی‌کنم",
+              "en": "What I do not claim"
+            },
+            "body": {
+              "fa": [
+                "این بخش عمداً اینجاست. سرویس‌های این دسته معمولاً چیزهایی تبلیغ می‌کنند که درست نیست: هیچ‌وقت قطع نمی‌شود، غیرقابل‌مسدودسازی، صددرصد ناشناس. هیچ‌کدام گزارهٔ مهندسی نیستند و من آن‌ها را دربارهٔ هایپرنت نمی‌گویم.",
+                "آنچه درست است: سرویس را یک نفر اداره می‌کند، فرایند مهاجرت تعریف‌شده دارد، و وقتی مسیری افت می‌کند پاسخ، جابه‌جا شدن است نه وانمود کردن."
+              ],
+              "en": [
+                "This section exists on purpose. Services in this category routinely advertise things that are not true: never disconnects, unblockable, one hundred percent anonymous. None of those are engineering statements, and I will not make them about HyperNet.",
+                "What is true: the service is operated by one person, it has a defined migration process, and when a route degrades the response is to move, not to pretend."
+              ]
+            }
+          },
+          {
+            "id": "lessons",
+            "title": {
+              "fa": "درس‌های مهندسی",
+              "en": "Engineering lessons"
+            },
+            "body": {
+              "fa": [
+                "اداره کردن سرویس رشته‌ای متفاوت از ساختن آن است. در دسترس بودن قابلیتی نیست که اضافه کنی؛ مجموعه‌ای از عادت‌هاست — پشتیبانی که واقعاً از آن بازیابی کرده‌ای، مهاجرتی که تمرین کرده‌ای، هشدارهایی که واقعاً می‌خوانی.",
+                "حجم پشتیبانی یک سیگنال طراحی است. هر پرسشی که کاربر دو بار از ربات می‌پرسد، رابطی است که من اشتباه ساخته‌ام."
+              ],
+              "en": [
+                "Operating a service is a different discipline from building one. Uptime is not a feature you add; it is a set of habits — backups you have restored from, a migration you have rehearsed, alerts you actually read.",
+                "Support volume is a design signal. Every question a user asks the bot twice is an interface I got wrong."
+              ]
+            }
+          }
+        ],
+        "gallery": []
+      }
+    },
+    {
+      "kind": "project",
+      "data": {
+        "slug": "arc-core",
+        "draft": false,
+        "name": {
+          "fa": "آرک کور",
+          "en": "Arc Core"
+        },
+        "category": {
+          "fa": "سخت‌افزار پوشیدنی",
+          "en": "Wearable hardware"
+        },
+        "role": {
+          "fa": "طراح و توسعه‌دهندهٔ فرم‌ور",
+          "en": "Designer & Firmware Developer"
+        },
+        "status": "prototype",
+        "featured": true,
+        "order": 5,
+        "summary": {
+          "fa": "پروژهٔ سخت‌افزار پوشیدنی حول یک ماژول مرکزی دایره‌ای. در مرحلهٔ نمونهٔ اولیه — این صفحه آنچه هست را از آنچه برنامه‌ریزی شده جدا می‌کند.",
+          "en": "A wearable hardware project built around a circular core module. In prototype — this page separates what exists from what is planned."
+        },
+        "intro": {
+          "fa": "آرک کور پروژه‌ای است که در آن نمی‌توانم پشت نرم‌افزار پنهان شوم. یک برد یا شناسایی می‌شود یا نمی‌شود. در مرحلهٔ نمونهٔ اولیه است و هر چیزی که پایین می‌آید با وضعیت واقعی امروزش برچسب خورده.",
+          "en": "Arc Core is the project where I cannot hide behind software. A board either enumerates or it does not. It is at prototype stage, and everything below is labelled by what is actually working today."
+        },
+        "tech": [
+          "ESP32",
+          "Arduino",
+          "C++",
+          "KiCad",
+          "3D printing"
+        ],
+        "links": [],
+        "theme": {
+          "motif": "trace",
+          "glow": 0.3,
+          "glowLight": 0.18,
+          "dark": {
+            "background": "#04070c",
+            "surface": "#0a1017",
+            "accent": "#5ec8ff",
+            "accentSecondary": "#2a8fd6",
+            "foreground": "#eaf3fa",
+            "muted": "#8d9dab"
+          },
+          "light": {
+            "background": "#eef5fb",
+            "surface": "#ffffff",
+            "accent": "#0a6089",
+            "accentSecondary": "#084a6b",
+            "foreground": "#04121c",
+            "muted": "#4a5d6b"
+          }
+        },
+        "capabilities": [
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "راه‌اندازی ماژول مرکزی و مسیر تغذیه",
+              "en": "Core module bring-up and power path"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "حلقهٔ خواندن حسگر در فرم‌ور دستگاه",
+              "en": "Sensor read loop on device firmware"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "اتصال بی‌سیم به کلاینت همراه",
+              "en": "Wireless link to a companion client"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "بازنگری بدنه و پوشیدنی بودن",
+              "en": "Enclosure and wearability revisions"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "کار روی بودجهٔ توان و عمر باتری",
+              "en": "Power budget and battery life work"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "برد چاپی اختصاصی به‌جای برد توسعه",
+              "en": "Custom PCB replacing the development board"
+            }
+          },
+          {
+            "state": "unverified",
+            "label": {
+              "fa": "رابط روی دستگاه و بازخورد لمسی",
+              "en": "On-device interface and haptics"
+            }
+          }
+        ],
+        "sections": [
+          {
+            "id": "concept",
+            "title": {
+              "fa": "ایده",
+              "en": "Concept"
+            },
+            "body": {
+              "fa": [
+                "یک ماژول مرکزی دایره‌ای که پردازش، رادیو و حسگری را در خود دارد و بقیهٔ دستگاه پوشیدنی حول آن چیده می‌شود. این هندسه تزئینی نیست: مرکز گرد همان چیزی است که اجازه می‌دهد یک ماژول در بیش از یک نگه‌دارنده بنشیند."
+              ],
+              "en": [
+                "A single circular core module that carries the compute, the radio and the sensing, with the rest of the wearable arranged around it. The geometry is not decorative: a round core is what lets the same module sit in more than one carrier."
+              ]
+            }
+          },
+          {
+            "id": "goals",
+            "title": {
+              "fa": "اهداف طراحی",
+              "en": "Design goals"
+            },
+            "body": {
+              "fa": [
+                "سه محدودیت همهٔ تصمیم‌ها را هدایت می‌کند. باید آن‌قدر کوچک باشد که بدون فکر کردن پوشیده شود. باید بین دو شارژ آن‌قدر دوام بیاورد که شارژ کردن عادتی هفتگی باشد نه روزانه. و فرم‌ور باید ایمن شکست بخورد — دستگاه پوشیدنی‌ای که هنگ می‌کند از دستگاه خاموش بدتر است."
+              ],
+              "en": [
+                "Three constraints drive every decision. It has to be small enough to wear without thinking about it. It has to run long enough between charges that charging is a weekly habit, not a daily one. And the firmware has to fail safe — a wearable that hangs is worse than one that is off."
+              ]
+            }
+          },
+          {
+            "id": "hardware",
+            "title": {
+              "fa": "معماری سخت‌افزار",
+              "en": "Hardware architecture"
+            },
+            "body": {
+              "fa": [
+                "نمونهٔ اولیه روی برد توسعهٔ ESP32 ساخته شده؛ به‌خاطر رادیوی یکپارچه و حجم تجربهٔ در دسترس، تا وقتی طراحی هنوز در حال تغییر است. حسگری و تغذیه روی ریل‌های جدا هستند تا بار پرنویز نتواند اندازه‌گیری را خراب کند.",
+                "برد فعلی سخت‌افزار توسعه است. برد چاپی اختصاصی برنامه‌ریزی شده، نه ساخته‌شده؛ آن مرحله فقط وقتی معنا دارد که چیدمان ماژول از تغییر بایستد."
+              ],
+              "en": [
+                "The prototype is built on an ESP32 development board, chosen for the integrated radio and the amount of prior art available while the design is still moving. Sensing and power are on separate rails so that a noisy load cannot corrupt a reading.",
+                "The current board is development hardware. A custom PCB is planned, not built — that step only makes sense once the module layout stops changing."
+              ]
+            }
+          },
+          {
+            "id": "firmware",
+            "title": {
+              "fa": "فرم‌ور",
+              "en": "Firmware"
+            },
+            "body": {
+              "fa": [
+                "C++ روی زنجیرهٔ ابزار Arduino. حلقه عمداً کسل‌کننده است: بخوان، زمان بزن، بافر کن، اگر اتصال هست بفرست و اگر نیست قدیمی‌ترین نمونه را دور بینداز. هیچ‌چیز در مسیر حسگری منتظر رادیو نمی‌ماند.",
+                "اشکال‌زدایی کار امبدد بیشتر انضباطِ تغییر دادن یک متغیر در هر بار است، که دقیقاً برعکس شیوهٔ کار من روی نرم‌افزار وب است، و همین دلیل اصلی مفید بودن این پروژه برای من است."
+              ],
+              "en": [
+                "C++ on the Arduino toolchain. The loop is deliberately dull: read, timestamp, buffer, transmit when a link exists, drop the oldest sample when it does not. Nothing in the sensing path waits on the radio.",
+                "Debugging embedded work is mostly the discipline of changing one variable at a time, which is the opposite of how I work on web software, and is the main reason this project has been useful to me."
+              ]
+            }
+          },
+          {
+            "id": "state",
+            "title": {
+              "fa": "وضعیت فعلی",
+              "en": "Current state"
+            },
+            "body": {
+              "fa": [
+                "امروز کار می‌کند: ماژول مرکزی پایدار روشن می‌شود، حسگرهایش را می‌خواند و اتصال بی‌سیم با کلاینت همراه را حفظ می‌کند. در دست کار: بدنه و بودجهٔ توان. ساخته‌نشده: برد چاپی اختصاصی و رابط روی دستگاه.",
+                "این فهرست تغییر خواهد کرد. اما ویرایش نمی‌شود تا بهتر از آنچه هست به نظر برسد."
+              ],
+              "en": [
+                "Working today: the core module powers up reliably, reads its sensors and maintains a wireless link to a companion client. Being worked on: the enclosure, and the power budget. Not built: the custom PCB and the on-device interface.",
+                "That list will change. It will not be edited to look better than it is."
+              ]
+            }
+          }
+        ],
+        "gallery": []
+      }
+    }
+  ]
+}
