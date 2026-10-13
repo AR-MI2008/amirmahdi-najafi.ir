@@ -25,7 +25,8 @@ requires a site URL and a random `RATE_LIMIT_PEPPER`. Without a mail provider,
 the contact endpoint returns 503 instead of claiming delivery.
 
 For CMS initialization, trusted proxy setup, preflight and verified SQLite
-backup/restore, follow [CMS stage 7](CMS-STAGE-7.md). The standard build uses
+backup/restore, follow [CMS stage 7](CMS-STAGE-7.md). Before enabling public SQLite
+content, follow [CMS stage 8](CMS-STAGE-8.md) for transactional import and preflight. The standard build uses
 webpack; `npm run build:turbopack` is an optional diagnostic path.
 
 Never prefix a secret with `NEXT_PUBLIC_`. Anything with that prefix is

@@ -3,8 +3,9 @@
 > ## CMS development branch
 >
 > The private SQLite CMS has graphical Persian post/project forms on
-> `feature/admin-cms`. It is not deployed and public rendering still uses typed
-> content. Stage 7 adds production browser checks, runtime preflight and
+> `feature/admin-cms`. It is not deployed. Stage 8 connects public content to SQLite via an explicit
+> source setting, with draft filtering, migration and revision restore;
+> see [CMS stage 8](docs/CMS-STAGE-8.md). Stage 7 adds runtime preflight and
 > verified backup/restore tools; see [CMS stage 7](docs/CMS-STAGE-7.md) for actual
 > validation results and release requirements. A lockfile is present and the
 > standard production build uses webpack.

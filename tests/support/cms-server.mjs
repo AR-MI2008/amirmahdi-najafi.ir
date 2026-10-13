@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes, scryptSync } from 'node:crypto';
+import { importContent } from '../../scripts/cms-import.mjs';
 import { DatabaseSync } from 'node:sqlite';
 const dir = mkdtempSync(join(tmpdir(), 'cms-e2e-'));
 const key = join(dir, 'key.pem'),
@@ -36,10 +37,15 @@ const salt = randomBytes(16);
 const password = 'Local-CMS-E2E-only-2026!';
 const stored = `${salt.toString('hex')}:${scryptSync(password, salt, 64).toString('hex')}`;
 const db = new DatabaseSync(database);
-for (const migration of ['0001_admin_cms.sql', '0002_admin_security.sql'])
+for (const migration of [
+  '0001_admin_cms.sql',
+  '0002_admin_security.sql',
+  '0003_public_content.sql',
+])
   db.exec(readFileSync(join('database/migrations', migration), 'utf8'));
 db.close();
 chmodSync(database, 0o600);
+importContent(database);
 const app = spawn(
   process.execPath,
   ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3107'],
@@ -47,6 +53,7 @@ const app = spawn(
     env: {
       ...process.env,
       NODE_ENV: 'production',
+      CONTENT_SOURCE: 'sqlite',
       NEXT_PUBLIC_SITE_URL: 'https://amirmahdi-najafi.ir',
       RATE_LIMIT_PEPPER: randomBytes(32).toString('hex'),
       ADMIN_DATABASE_PATH: database,
