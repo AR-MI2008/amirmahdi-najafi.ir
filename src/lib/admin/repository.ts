@@ -56,7 +56,9 @@ export function getAdminEntry(kind: Kind, slug: string): StoredEntry | null {
  * authentication, authorization, origin checks and input-size validation.
  */
 export function entryVersion(data: Content): string {
-  return createHash('sha256').update(JSON.stringify(data)).digest('hex');
+  const normalized =
+    'blocks' in data ? adminPostSchema.parse(data) : adminProjectSchema.parse(data);
+  return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
 }
 
 export function saveAdminEntry(
@@ -65,10 +67,8 @@ export function saveAdminEntry(
   expectedVersion: string | null = null,
 ): StoredEntry {
   const data = parse(kind, raw);
-  const status =
-    kind === 'post' ? ((data as AdminPostInput).draft ? 'draft' : 'published') : 'published';
+  const status = data.draft ? 'draft' : 'published';
   const db = getAdminDatabase();
-  const serialized = JSON.stringify(data);
   db.exec('BEGIN IMMEDIATE');
   try {
     const existing = db
@@ -82,6 +82,9 @@ export function saveAdminEntry(
       throw new Error('CONFLICT');
     }
     if (!existing && expectedVersion) throw new Error('CONFLICT');
+    if (existing && kind === 'post')
+      (data as AdminPostInput).updatedAt = new Date().toISOString().slice(0, 10);
+    const serialized = JSON.stringify(data);
     let id: number;
     if (existing) {
       id = existing.id;
@@ -120,4 +123,30 @@ export function saveAdminEntry(
     db.exec('ROLLBACK');
     throw error;
   }
+}
+
+export function listAdminRevisions(kind: Kind, slug: string): { id: number; createdAt: string }[] {
+  return getAdminDatabase()
+    .prepare(
+      'SELECT r.id,r.created_at FROM cms_revisions r JOIN cms_entries e ON e.id=r.entry_id WHERE e.kind=? AND e.slug=? ORDER BY r.id DESC LIMIT 20',
+    )
+    .all(kind, slug)
+    .map((r) => ({ id: Number(r.id), createdAt: String(r.created_at) }));
+}
+export function restoreAdminRevision(
+  kind: Kind,
+  slug: string,
+  revisionId: number,
+  version: string,
+): StoredEntry {
+  const row = getAdminDatabase()
+    .prepare(
+      'SELECT r.snapshot_json FROM cms_revisions r JOIN cms_entries e ON e.id=r.entry_id WHERE e.kind=? AND e.slug=? AND r.id=?',
+    )
+    .get(kind, slug, revisionId);
+  if (!row) throw new Error('Revision not found');
+  const data = parse(kind, JSON.parse(String(row.snapshot_json)));
+  if (data.slug !== slug) throw new Error('Revision slug mismatch');
+  // Restores must be reviewed before they can become public again.
+  return saveAdminEntry(kind, { ...data, draft: true }, version);
 }

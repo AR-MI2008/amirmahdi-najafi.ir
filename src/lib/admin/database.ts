@@ -32,6 +32,7 @@ export function getAdminDatabase(): DatabaseSync {
     const migrationRoot = resolve(process.cwd(), 'database/migrations');
     instance.exec(readFileSync(resolve(migrationRoot, '0001_admin_cms.sql'), 'utf8'));
     instance.exec(readFileSync(resolve(migrationRoot, '0002_admin_security.sql'), 'utf8'));
+    instance.exec(readFileSync(resolve(migrationRoot, '0003_public_content.sql'), 'utf8'));
     db = instance;
     return instance;
   } catch (error) {

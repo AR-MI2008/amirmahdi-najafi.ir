@@ -16,7 +16,7 @@ export default async function AdminDashboard() {
       <p style={{ color: 'var(--muted)' }}>AN / PRIVATE CMS</p>
       <h1 style={{ fontSize: '2rem', fontWeight: 700, marginTop: 20 }}>داشبورد مدیریت</h1>
       <p style={{ marginTop: 12, color: 'var(--muted)' }}>
-        مقاله‌ها و پروژه‌ها را مدیریت کنید. نمایش محتوای CMS در سایت عمومی هنوز فعال نیست.
+        مقاله‌ها و پروژه‌ها را مدیریت کنید. برای نمایش عمومی CMS، منبع SQLite باید پس از انتقال محتوا فعال شود.
       </p>
       <section
         style={{ marginTop: 32, padding: 24, border: '1px solid var(--border)', borderRadius: 8 }}

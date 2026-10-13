@@ -271,7 +271,7 @@ function Field({
     <div className="cms-field">
       <label htmlFor={id}>
         {label}
-        {schema.isOptional() ? ' (اختیاری)' : ''}
+        {schema.isOptional() && !(schema instanceof z.ZodDefault) ? ' (اختیاری)' : ''}
       </label>
       {s instanceof z.ZodBoolean ? (
         <input
@@ -340,8 +340,8 @@ export function ContentEditor({
   const [value, setValue] = useState<unknown>(() => {
     if (initial) return initial;
     const draft = empty(schema) as Record<string, unknown>;
-    if (kind === 'post') draft.draft = true;
-    else
+    draft.draft = true;
+    if (kind === 'project')
       draft.theme = {
         motif: 'radar',
         glow: 0.2,
@@ -373,7 +373,7 @@ export function ContentEditor({
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="originalSlug" value={originalSlug} />
       <p>
-        فیلدهای فارسی و انگلیسی را تکمیل کنید. تاریخ‌ها میلادی و به صورت YYYY-MM-DD هستند؛ تاریخ
+        فیلدهای فارسی و انگلیسی را تکمیل کنید. تاریخ به‌روزرسانی مقاله هنگام ویرایش به‌صورت خودکار ثبت می‌شود. تاریخ‌ها میلادی و به صورت YYYY-MM-DD هستند؛ تاریخ
         پروژه می‌تواند YYYY-MM باشد. تصاویر از مسیر محلی مثل /images/example.webp انتخاب می‌شوند.
       </p>
       <fieldset disabled={pending || state.ok}>

@@ -24,6 +24,7 @@ const safeUrl = z.string().url().max(2048).refine((value) => {
 
 export const adminProjectSchema = z.object({
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120),
+  draft: z.boolean().default(true),
   name: l10n,
   category: l10n,
   role: l10n,

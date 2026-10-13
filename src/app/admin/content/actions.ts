@@ -2,7 +2,7 @@
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { isAdminAuthenticated } from '@/lib/admin/auth';
-import { saveAdminEntry } from '@/lib/admin/repository';
+import { saveAdminEntry, restoreAdminRevision } from '@/lib/admin/repository';
 import { validAdminOrigin } from '@/lib/admin/request-security';
 import { adminPostSchema } from '@/lib/admin/post-validation';
 import { adminProjectSchema } from '@/lib/admin/project-validation';
@@ -44,10 +44,13 @@ export async function saveAdminContent(_previous: SaveResult, form: FormData): P
       return { ok: false, message: 'شناسهٔ رکورد در ویرایش قابل تغییر نیست.' };
     saveAdminEntry(kind, parsed.data, version || null);
     revalidatePath('/admin/content');
+    revalidatePath('/fa', 'layout');
+    revalidatePath('/en', 'layout');
+    revalidatePath('/sitemap.xml');
     return {
       ok: true,
       message:
-        'ذخیره شد. نمایش در سایت عمومی هنوز فعال نیست؛ برای ویرایش بعدی رکورد را دوباره باز کنید.',
+        'ذخیره شد. در حالت SQLite، فقط محتوای منتشرشده نمایش داده می‌شود؛ برای ویرایش بعدی رکورد را دوباره باز کنید.',
     };
   } catch (error) {
     return {
@@ -56,6 +59,48 @@ export async function saveAdminContent(_previous: SaveResult, form: FormData): P
         error instanceof Error && error.message === 'CONFLICT'
           ? 'این شناسه قبلاً ثبت شده یا رکورد تغییر کرده است. فهرست را تازه کنید و دوباره باز کنید.'
           : 'ذخیره‌سازی ناموفق بود؛ اطلاعات فرم حفظ شده است.',
+    };
+  }
+}
+
+export async function restoreAdminContent(
+  _previous: SaveResult,
+  form: FormData,
+): Promise<SaveResult> {
+  if (!(await isAdminAuthenticated()) || !validAdminOrigin(await headers()))
+    return { ok: false, message: 'دسترسی یا مبدأ درخواست نامعتبر است.' };
+  const kind = form.get('kind'),
+    slug = form.get('slug'),
+    version = form.get('version'),
+    id = Number(form.get('revision'));
+  if (
+    (kind !== 'post' && kind !== 'project') ||
+    typeof slug !== 'string' ||
+    slug.length > 120 ||
+    typeof version !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(version) ||
+    !Number.isSafeInteger(id) ||
+    id < 1
+  )
+    return { ok: false, message: 'درخواست بازگردانی نامعتبر است.' };
+  try {
+    restoreAdminRevision(kind, slug, id, version);
+    revalidatePath('/admin/content');
+    revalidatePath('/fa', 'layout');
+    revalidatePath('/en', 'layout');
+    revalidatePath('/sitemap.xml');
+    return {
+      ok: true,
+      message:
+        'نسخهٔ انتخاب‌شده به پیش‌نویس بازگردانده شد. برای بررسی و انتشار، رکورد را دوباره باز کنید.',
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error && error.message === 'CONFLICT'
+          ? 'رکورد تغییر کرده است؛ دوباره باز کنید.'
+          : 'بازگردانی ناموفق بود.',
     };
   }
 }

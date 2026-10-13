@@ -1,9 +1,16 @@
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { isAdminAuthenticated } from '@/lib/admin/auth';
-import { listAdminEntries, getAdminEntry, entryVersion } from '@/lib/admin/repository';
+import {
+  listAdminEntries,
+  getAdminEntry,
+  entryVersion,
+  listAdminRevisions,
+} from '@/lib/admin/repository';
 import { ContentEditor } from './content-editor';
 import './content.css';
+import { getContentMode } from '@/lib/content-mode';
+import { RevisionRestore } from './revision-restore';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const metadata = { title: 'مدیریت محتوا', robots: { index: false, follow: false } };
@@ -24,7 +31,11 @@ export default async function AdminContentPage({
     <main dir="rtl" className="cms-main">
       <Link href="/admin">بازگشت به داشبورد</Link>
       <h1>مدیریت مقاله‌ها و پروژه‌ها</h1>
-      <p>محتوای ذخیره‌شده هنوز در سایت عمومی نمایش داده نمی‌شود.</p>
+      <p>
+        {getContentMode() === 'sqlite'
+          ? 'منبع عمومی SQLite فعال است؛ فقط محتوای منتشرشده نمایش داده می‌شود.'
+          : 'منبع عمومی هنوز فایل‌های ثابت است؛ برای نمایش CMS باید انتقال محتوا و فعال‌سازی SQLite انجام شود.'}
+      </p>
       <nav className="cms-buttons">
         <Link href="/admin/content?kind=post">مقالهٔ جدید</Link>
         <Link href="/admin/content?kind=project">پروژهٔ جدید</Link>
@@ -42,6 +53,14 @@ export default async function AdminContentPage({
             version={entry ? entryVersion(entry.data) : ''}
             originalSlug={entry?.slug}
           />
+          {entry && (
+            <RevisionRestore
+              kind={kind}
+              slug={entry.slug}
+              version={entryVersion(entry.data)}
+              revisions={listAdminRevisions(kind, entry.slug)}
+            />
+          )}
         </>
       ) : (
         (
@@ -63,7 +82,7 @@ export default async function AdminContentPage({
                     <Link href={`/admin/content?kind=${e.kind}&slug=${encodeURIComponent(e.slug)}`}>
                       {'title' in e.data ? e.data.title.fa : e.data.name.fa}
                     </Link>{' '}
-                    — {e.status === 'draft' ? 'پیش‌نویس' : 'ثبت‌شده'}{' '}
+                    — {e.status === 'draft' ? 'پیش‌نویس' : 'منتشرشده'}{' '}
                     <span dir="ltr">({e.slug})</span>
                   </li>
                 ))}
