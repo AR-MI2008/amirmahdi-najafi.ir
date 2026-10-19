@@ -44,4 +44,21 @@ jobs:
       - name: Production build
         run: npm run build
 
+
+      - name: Package standalone server
+        run: |
+          test -f .next/standalone/server.js
+          mkdir -p .next/standalone/.next
+          cp -a .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -a public .next/standalone/public; fi
+          tar -czf admin-cms-standalone.tar.gz -C .next/standalone .
+
+      - name: Upload standalone artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-cms-standalone
+          path: admin-cms-standalone.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
       # CI-only: no deployment, server credentials, or production database access.
