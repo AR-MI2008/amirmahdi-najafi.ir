@@ -36,7 +36,7 @@ jobs:
         run: npm run lint
 
       - name: Unit tests
-        run: npm run test -- --maxWorkers=2
+        run: npm run test -- --maxWorkers=2 --minWorkers=1
 
       - name: Operational tests
         run: npm run test:ops
