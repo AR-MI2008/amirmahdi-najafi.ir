@@ -1,0 +1,47 @@
+name: Admin CMS CI
+
+on:
+  push:
+    branches: [feature/admin-cms]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-cms-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test -- --maxWorkers=2
+
+      - name: Operational tests
+        run: npm run test:ops
+
+      - name: Production build
+        run: npm run build
+
+      # CI-only: no deployment, server credentials, or production database access.
